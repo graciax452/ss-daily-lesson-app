@@ -70,7 +70,7 @@
       .order('created_at', { ascending: false });
 
     if (error) {
-      list.innerHTML = `<div style="text-align:center; padding:20px; color:#DC2626; font-size:0.85rem;">Error loading submissions: ${error.message}</div>`;
+      list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--sv-red); font-size:0.85rem;">Error loading submissions: ${error.message}</div>`;
       return;
     }
 
@@ -87,11 +87,11 @@
       const canDelete = currentUser.isAdmin || (currentUser.name && currentUser.name === cleanAuthor);
 
       return `
-        <div class="sv-mission-card" style="background:#ffffff; border:1px solid #E7E5E4; border-radius:14px; padding:14px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+        <div class="sv-mission-card" style="background:#ffffff; border:1px solid var(--sv-border); border-radius:14px; padding:14px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
           <!-- Card Header -->
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
             <div style="display:flex; align-items:center; gap:10px;">
-              ${m.user_avatar ? `<img src="${m.user_avatar}" style="width:34px; height:34px; border-radius:50%; object-fit:cover;">` : `<div style="width:34px; height:34px; border-radius:50%; background:#FEF3C7; color:#B45309; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">${initial}</div>`}
+              ${m.user_avatar ? `<img src="${m.user_avatar}" style="width:34px; height:34px; border-radius:50%; object-fit:cover;">` : `<div style="width:34px; height:34px; border-radius:50%; background:var(--sv-cream); color:var(--sv-orange); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">${initial}</div>`}
               <div>
                 <div style="font-weight:700; font-size:0.9rem; color:#1C1917;">${cleanAuthor}</div>
                 <div style="font-size:0.75rem; color:#A8A29E;">${new Date(m.created_at).toLocaleDateString()}</div>
@@ -99,7 +99,7 @@
             </div>
             
             ${canDelete ? `
-              <button type="button" class="sv-delete-mission-btn" data-mission-id="${m.id}" title="Delete Submission" style="background:#FEE2E2; border:none; color:#DC2626; border-radius:6px; padding:4px 8px; font-size:0.78rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+              <button type="button" class="sv-delete-mission-btn" data-mission-id="${m.id}" title="Delete Submission" style="background:rgba(235,85,85,0.12); border:none; color:var(--sv-red); border-radius:6px; padding:4px 8px; font-size:0.78rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
                 🗑️ Delete
               </button>
             ` : ''}
@@ -123,7 +123,7 @@
           </div>
 
           <!-- Replies Section -->
-          <div id="sv-replies-${m.id}" style="margin-top:10px; padding-top:8px; border-top:1px dashed #E7E5E4; display:${replies.length > 0 ? 'block' : 'none'};">
+          <div id="sv-replies-${m.id}" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--sv-border); display:${replies.length > 0 ? 'block' : 'none'};">
             <div class="sv-replies-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">
               ${replies.map(r => {
                 const cleanReplyAuthor = (r.user_name || 'Learner').replace(/[()[\]{}<>]/g, '').trim();
@@ -135,7 +135,7 @@
                       <span style="color:#44403C;">${r.reply_text}</span>
                     </div>
                     ${canDeleteReply ? `
-                      <button type="button" class="sv-delete-reply-btn" data-reply-id="${r.id}" title="Delete Reply" style="background:none; border:none; color:#DC2626; opacity:0.7; cursor:pointer; font-size:0.85rem; padding:2px 6px; line-height:1;">
+                      <button type="button" class="sv-delete-reply-btn" data-reply-id="${r.id}" title="Delete Reply" style="background:none; border:none; color:var(--sv-red); opacity:0.7; cursor:pointer; font-size:0.85rem; padding:2px 6px; line-height:1;">
                         ✕
                       </button>
                     ` : ''}
@@ -269,6 +269,21 @@
         `;
         loadMissionsFeed(lessonId);
       }
+    }
+
+    // Custom "Toggle lessons" icon (native one only works on mobile-width breakpoints)
+    const topNav = document.querySelector('.fcom_back_space .fcom_lesson_nav');
+    if (topNav && !document.getElementById('sv-toc-toggle-btn')) {
+      const tocBtn = document.createElement('button');
+      tocBtn.type = 'button';
+      tocBtn.id = 'sv-toc-toggle-btn';
+      tocBtn.className = 'sv-icon-btn';
+      tocBtn.setAttribute('aria-label', 'Toggle lessons list');
+      tocBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+      tocBtn.addEventListener('click', () => {
+        document.body.classList.toggle('sv-toc-collapsed');
+      });
+      topNav.appendChild(tocBtn);
     }
 
     if (lessonBody) {

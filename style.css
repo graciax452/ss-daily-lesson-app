@@ -2,18 +2,27 @@
    1. COLOR VARIABLES & THEME TOKENS
    ========================================== */
 :root {
-  --sv-terracotta: #EA580C;
-  --sv-terracotta-hover: #C2410C;
-  --sv-amber: #D97706;
-  --sv-amber-dark: #B45309;
-  --sv-cream: #FEF3C7;
-  --sv-border: #E7E5E4;
+  /* Brand palette */
+  --sv-ink: #000000;
+  --sv-cream: #EEEEE5;
+  --sv-cream-mute: #C8C8C0;
+  --sv-lime: #96b85b;
+  --sv-brand-green: #008C2C;
+  --sv-yellow: #FCB900;
+  --sv-red: #EB5555;
+  --sv-orange: #B95600;
+
+  /* Semantic aliases used across components */
+  --sv-terracotta: var(--sv-orange);
+  --sv-terracotta-hover: #96460a;
+  --sv-amber: var(--sv-yellow);
+  --sv-amber-dark: var(--sv-ink);
+  --sv-border: var(--sv-cream-mute);
   --sv-bg-light: #F8FAFC;
-  --sv-text-main: #1C1917;
+  --sv-text-main: var(--sv-ink);
   --sv-text-muted: #78716C;
-  --sv-green: #16A34A;
-  --sv-green-hover: #15803D;
-  --sv-gray-done: #E7E5E4;
+  --sv-lime-hover: var(--sv-brand-green);
+  --sv-gray-done: var(--sv-cream-mute);
 }
 
 /* ==========================================
@@ -38,15 +47,34 @@
     flex: 1 1 100% !important;
   }
 
-  /* Force-show the native "Toggle lessons" icon (hidden by FluentCommunity at desktop widths) */
-  .fcom_lesson_wrap .fcom_back_space .fcom_toc_control {
-    display: inline-flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-
   /* Hide the native Comments icon next to the Completed pill (redundant with our own missions feed) */
   .fcom_lesson_wrap .fcom_back_space .fcom_lesson_nav button[aria-label="Comments"] {
+    display: none !important;
+  }
+
+  /* Custom "Toggle lessons" icon (native one only works below this breakpoint) */
+  .sv-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin-left: 15px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--sv-text-muted);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .sv-icon-btn:hover {
+    background: var(--sv-cream);
+    color: var(--sv-ink);
+  }
+
+  /* Collapse the native Lessons sidebar (Element Plus scrollbar root, found via its content) */
+  body.sv-toc-collapsed .el-scrollbar:has(.fcom_section_sidebar_title) {
     display: none !important;
   }
 
@@ -129,16 +157,17 @@
 }
 
 .sv-btn-next {
-  background: var(--sv-green);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
+  background: var(--sv-lime);
+  color: var(--sv-ink);
+  box-shadow: 0 2px 8px rgba(150, 184, 91, 0.35);
   width: auto;
   min-width: 260px;
   white-space: nowrap;
 }
 
 .sv-btn-next:hover {
-  background: var(--sv-green-hover);
+  background: var(--sv-lime-hover);
+  color: #ffffff;
 }
 
 .sv-btn-done {
