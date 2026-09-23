@@ -279,7 +279,7 @@
       tocBtn.id = 'sv-toc-toggle-btn';
       tocBtn.className = 'sv-icon-btn';
       tocBtn.setAttribute('aria-label', 'Toggle lessons list');
-      tocBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+      tocBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s7-7.58 7-13a7 7 0 1 0-14 0c0 5.42 7 13 7 13z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="9" r="2.5" stroke="currentColor" stroke-width="2"/></svg>`;
       tocBtn.addEventListener('click', () => {
         document.body.classList.toggle('sv-toc-collapsed');
       });
