@@ -1,3 +1,21 @@
+/* ==========================================
+   1. COLOR VARIABLES & THEME TOKENS
+   ========================================== */
+:root {
+  --sv-terracotta: #EA580C;
+  --sv-terracotta-hover: #C2410C;
+  --sv-amber: #D97706;
+  --sv-amber-dark: #B45309;
+  --sv-cream: #FEF3C7;
+  --sv-border: #E7E5E4;
+  --sv-bg-light: #F8FAFC;
+  --sv-text-main: #1C1917;
+  --sv-text-muted: #78716C;
+}
+
+/* ==========================================
+   2. DESKTOP SPLIT LAYOUT & VIDEO SIZING
+   ========================================== */
 @media screen and (min-width: 1100px) {
   .fcom_lesson_wrap .el-scrollbar__view {
     display: flex !important;
@@ -36,9 +54,93 @@
     position: sticky !important;
     top: 20px !important;
     background: #ffffff !important;
-    border: 1px solid #eef0f2 !important;
+    border: 1px solid var(--sv-border) !important;
     border-radius: 16px !important;
     padding: 20px !important;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
   }
+}
+
+/* ==========================================
+   3. LESSON ACTION BUTTONS STACK
+   ========================================== */
+.sv-action-buttons-row {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.sv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.sv-btn-submit {
+  background: var(--sv-cream);
+  color: var(--sv-amber-dark);
+  border: 1.5px solid var(--sv-border);
+}
+
+.sv-btn-submit:hover {
+  background: #fde68a;
+}
+
+.sv-btn-complete {
+  background: var(--sv-terracotta);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.25);
+}
+
+.sv-btn-complete:hover {
+  background: var(--sv-terracotta-hover);
+}
+
+/* ==========================================
+   4. MISSION MODAL OVERLAY & CARD
+   ========================================== */
+.sv-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.sv-modal-overlay.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sv-modal-card {
+  background: #ffffff;
+  width: 100%;
+  max-width: 480px;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transform: translateY(10px);
+  transition: transform 0.25s ease;
+}
+
+.sv-modal-overlay.is-active .sv-modal-card {
+  transform: translateY(0);
 }
