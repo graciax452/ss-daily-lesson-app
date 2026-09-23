@@ -280,11 +280,12 @@
         lessonBody.appendChild(buttonStack);
       }
 
-      const nativeComplete = document.querySelector('.fcom_lesson_nav .fcom_primary_button, .fcom_lesson_wrap .fcom_primary_button');
-      const nativeNext = document.querySelector('.fcom_lesson_nav .fcom_next_btn, .fcom_lesson_footer .fcom_next_btn, .fcom_next_post_link, a[class*="fcom_next"]');
-      
+      const nativeComplete = document.querySelector('.fcom_back_space .fcom_lesson_nav .el-button--info');
+      const nativeNextBtn = document.querySelector('.fcom_lesson_header .fcom_lesson_nav button[aria-label="Next lesson"]');
+      const nativeNext = (nativeNextBtn && nativeNextBtn.getAttribute('aria-disabled') !== 'true') ? nativeNextBtn : null;
+
       let isCompleted = false;
-      if (nativeComplete && (nativeComplete.classList.contains('fcom_completed') || nativeComplete.textContent.toLowerCase().includes('completed') || nativeComplete.querySelector('.el-icon-check'))) {
+      if (nativeComplete && nativeComplete.textContent.trim().toLowerCase() === 'completed') {
           isCompleted = true;
       }
 
