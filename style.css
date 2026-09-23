@@ -64,11 +64,6 @@
     background: var(--sv-cream) !important;
   }
 
-  /* Collapse the native Lessons sidebar (Element Plus scrollbar root, found via its content) */
-  body.sv-toc-collapsed .el-scrollbar:has(.fcom_section_sidebar_title) {
-    display: none !important;
-  }
-
   /* Left Column: Expanded Width for Bigger Video */
   .fcom_lesson_wrap .fcom_lesson_details {
     flex: 1 1 66% !important;
@@ -165,25 +160,6 @@
   background: var(--sv-gray-done);
   color: var(--sv-text-muted);
   cursor: default;
-}
-
-.sv-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  border: 1.5px solid var(--sv-border);
-  border-radius: 999px;
-  background: #ffffff;
-  color: var(--sv-text-muted);
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.sv-icon-btn:hover {
-  background: var(--sv-cream);
-  color: var(--sv-ink);
 }
 
 /* ==========================================
