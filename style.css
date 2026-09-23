@@ -11,6 +11,9 @@
   --sv-bg-light: #F8FAFC;
   --sv-text-main: #1C1917;
   --sv-text-muted: #78716C;
+  --sv-green: #16A34A;
+  --sv-green-hover: #15803D;
+  --sv-gray-done: #E7E5E4;
 }
 
 /* ==========================================
@@ -33,6 +36,18 @@
   /* Top bar (breadcrumb + Complete Lesson + toggle icons): force its own full-width row */
   .fcom_lesson_wrap .el-scrollbar__view > .fcom_back_space {
     flex: 1 1 100% !important;
+  }
+
+  /* Force-show the native "Toggle lessons" icon (hidden by FluentCommunity at desktop widths) */
+  .fcom_lesson_wrap .fcom_back_space .fcom_toc_control {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  /* Hide the native Comments icon next to the Completed pill (redundant with our own missions feed) */
+  .fcom_lesson_wrap .fcom_back_space .fcom_lesson_nav button[aria-label="Comments"] {
+    display: none !important;
   }
 
   /* Left Column: Expanded Width for Bigger Video */
@@ -83,19 +98,14 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 16px 36px;
-  min-width: 240px;
+  padding: 12px 24px;
+  width: 260px;
   border-radius: 999px;
   font-weight: 700;
   font-size: 1.05rem;
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
-}
-
-.sv-btn-toggle-lessons {
-  min-width: 0;
-  font-size: 0.95rem;
 }
 
 .sv-btn-submit {
@@ -116,6 +126,22 @@
 
 .sv-btn-complete:hover {
   background: var(--sv-terracotta-hover);
+}
+
+.sv-btn-next {
+  background: var(--sv-green);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
+}
+
+.sv-btn-next:hover {
+  background: var(--sv-green-hover);
+}
+
+.sv-btn-done {
+  background: var(--sv-gray-done);
+  color: var(--sv-text-muted);
+  cursor: default;
 }
 
 /* ==========================================
