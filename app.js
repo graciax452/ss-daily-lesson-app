@@ -292,7 +292,7 @@
       if (isCompleted && nativeNext) {
           rightBtnHtml = `<button type="button" class="sv-btn sv-btn-complete" id="sv-trigger-next-btn" style="background:var(--sv-terracotta); color:#ffffff; border:none; box-shadow:0 2px 8px rgba(234, 88, 12, 0.25);">Next Lesson ➡️</button>`;
       } else if (!isCompleted && nativeComplete) {
-          rightBtnHtml = `<button type="button" class="sv-btn sv-btn-complete" id="sv-trigger-complete-btn" style="background:var(--sv-terracotta); color:#ffffff; border:none; box-shadow:0 2px 8px rgba(234, 88, 12, 0.25);"><span>✓</span> Lesson Completed</button>`;
+          rightBtnHtml = `<button type="button" class="sv-btn sv-btn-complete" id="sv-trigger-complete-btn" style="background:var(--sv-terracotta); color:#ffffff; border:none; box-shadow:0 2px 8px rgba(234, 88, 12, 0.25);"><span>○</span> Mark Lesson Complete</button>`;
       }
 
       const desiredHtml = `
@@ -300,6 +300,9 @@
           <span>✍️</span> Submit Mission
         </button>
         ${rightBtnHtml}
+        <button type="button" class="sv-btn sv-btn-toggle-lessons" id="sv-toggle-lessons-btn" style="background:#ffffff; color:var(--sv-text-muted); border:1.5px solid var(--sv-border);">
+          <span>☰</span> Lessons
+        </button>
       `;
 
       if (buttonStack.innerHTML !== desiredHtml) {
@@ -315,6 +318,10 @@
 
         document.getElementById('sv-trigger-next-btn')?.addEventListener('click', () => {
           if (nativeNext) nativeNext.click();
+        });
+
+        document.getElementById('sv-toggle-lessons-btn')?.addEventListener('click', () => {
+          document.querySelector('.fcom_toc_control')?.click();
         });
       }
     }

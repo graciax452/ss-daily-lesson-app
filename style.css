@@ -84,12 +84,18 @@
   justify-content: center;
   gap: 8px;
   padding: 16px 36px;
+  min-width: 240px;
   border-radius: 999px;
   font-weight: 700;
   font-size: 1.05rem;
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
+}
+
+.sv-btn-toggle-lessons {
+  min-width: 0;
+  font-size: 0.95rem;
 }
 
 .sv-btn-submit {
