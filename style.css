@@ -66,9 +66,10 @@
    ========================================== */
 .sv-action-buttons-row {
   display: flex;
-  gap: 12px;
-  margin: 20px 0;
+  gap: 16px;
+  margin: 24px 0;
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .sv-btn {
@@ -76,10 +77,10 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 20px;
-  border-radius: 12px;
+  padding: 16px 36px;
+  border-radius: 999px;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
