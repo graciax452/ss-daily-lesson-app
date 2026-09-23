@@ -1,0 +1,44 @@
+@media screen and (min-width: 1100px) {
+  .fcom_lesson_wrap .el-scrollbar__view {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    gap: 36px !important;
+    max-width: 1520px !important;
+    margin: 0 auto !important;
+    padding: 24px 32px !important;
+  }
+
+  /* Left Column: Expanded Width for Bigger Video */
+  .fcom_lesson_wrap .fcom_lesson_details {
+    flex: 1 1 66% !important;
+    max-width: 960px !important;
+    min-width: 520px !important;
+  }
+
+  /* Make Video Player Larger */
+  .fcom_lesson_wrap .feed_media_ext_video iframe,
+  .fcom_lesson_wrap video {
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 16 / 9 !important;
+    border-radius: 14px !important;
+  }
+
+  /* Right Column (Submissions Feed) */
+  .fcom_lesson_wrap .fcom_lesson_comments {
+    flex: 0 0 30% !important;
+    width: 30% !important;
+    max-width: 420px !important;
+    min-width: 300px !important;
+    position: sticky !important;
+    top: 20px !important;
+    background: #ffffff !important;
+    border: 1px solid #eef0f2 !important;
+    border-radius: 16px !important;
+    padding: 20px !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
+  }
+}
