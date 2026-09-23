@@ -22,11 +22,17 @@
     flex-direction: row !important;
     flex-wrap: wrap !important;
     align-items: flex-start !important;
+    align-content: flex-start !important;
     justify-content: center !important;
     gap: 36px !important;
     max-width: 1520px !important;
     margin: 0 auto !important;
     padding: 24px 32px !important;
+  }
+
+  /* Top bar (breadcrumb + Complete Lesson + toggle icons): force its own full-width row */
+  .fcom_lesson_wrap .el-scrollbar__view > .fcom_back_space {
+    flex: 1 1 100% !important;
   }
 
   /* Left Column: Expanded Width for Bigger Video */
