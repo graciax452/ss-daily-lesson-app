@@ -310,7 +310,7 @@
 
       let rightBtnHtml = '';
       if (isCompleted && nativeNext) {
-          rightBtnHtml = `<button type="button" class="sv-btn sv-btn-next" id="sv-trigger-next-btn">${svIconCheck} Completed — Next Lesson ${svIconArrow}</button>`;
+          rightBtnHtml = `<button type="button" class="sv-btn sv-btn-next" id="sv-trigger-next-btn">${svIconCheck} Complete ${svIconArrow}</button>`;
       } else if (isCompleted && !nativeNext) {
           rightBtnHtml = `<button type="button" class="sv-btn sv-btn-done" disabled>${svIconCheck} Lesson Completed</button>`;
       } else if (!isCompleted && nativeComplete) {

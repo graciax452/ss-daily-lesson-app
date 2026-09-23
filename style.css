@@ -73,6 +73,18 @@
     color: var(--sv-ink);
   }
 
+  /* Neutralize Element Plus's default blue hover on native icon buttons (fullscreen, prev/next arrows) */
+  .fcom_lesson_wrap .fcom_lesson_header .fcom_lesson_nav .el-button.is-text,
+  .fcom_lesson_wrap .fcom_back_space .fcom_lesson_nav .el-button.is-text {
+    color: var(--sv-text-muted) !important;
+  }
+
+  .fcom_lesson_wrap .fcom_lesson_header .fcom_lesson_nav .el-button.is-text:hover,
+  .fcom_lesson_wrap .fcom_back_space .fcom_lesson_nav .el-button.is-text:hover {
+    color: var(--sv-ink) !important;
+    background: var(--sv-cream) !important;
+  }
+
   /* Collapse the native Lessons sidebar (Element Plus scrollbar root, found via its content) */
   body.sv-toc-collapsed .el-scrollbar:has(.fcom_section_sidebar_title) {
     display: none !important;
