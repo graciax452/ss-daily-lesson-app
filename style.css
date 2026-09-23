@@ -52,27 +52,6 @@
     display: none !important;
   }
 
-  /* Custom "Toggle lessons" icon (native one only works below this breakpoint) */
-  .sv-icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    margin-left: 15px;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--sv-text-muted);
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
-  }
-
-  .sv-icon-btn:hover {
-    background: var(--sv-cream);
-    color: var(--sv-ink);
-  }
-
   /* Neutralize Element Plus's default blue hover on native icon buttons (fullscreen, prev/next arrows) */
   .fcom_lesson_wrap .fcom_lesson_header .fcom_lesson_nav .el-button.is-text,
   .fcom_lesson_wrap .fcom_back_space .fcom_lesson_nav .el-button.is-text {
@@ -186,6 +165,25 @@
   background: var(--sv-gray-done);
   color: var(--sv-text-muted);
   cursor: default;
+}
+
+.sv-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border: 1.5px solid var(--sv-border);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--sv-text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sv-icon-btn:hover {
+  background: var(--sv-cream);
+  color: var(--sv-ink);
 }
 
 /* ==========================================
