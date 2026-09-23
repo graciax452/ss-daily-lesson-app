@@ -132,6 +132,9 @@
   background: var(--sv-green);
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
+  width: auto;
+  min-width: 260px;
+  white-space: nowrap;
 }
 
 .sv-btn-next:hover {
