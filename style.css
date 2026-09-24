@@ -249,3 +249,7 @@ body.sv-toc-open .sv-toc-backdrop {
 .sv-modal-overlay.is-active .sv-modal-card {
   transform: translateY(0);
 }
+
+.sv-celebration-card {
+  position: relative;
+}
