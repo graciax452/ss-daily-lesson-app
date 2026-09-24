@@ -2,18 +2,28 @@
    1. COLOR VARIABLES & THEME TOKENS
    ========================================== */
 :root {
-  --sv-terracotta: #EA580C;
-  --sv-terracotta-hover: #C2410C;
-  --sv-amber: #D97706;
-  --sv-amber-dark: #B45309;
-  --sv-cream: #FEF3C7;
-  --sv-border: #E7E5E4;
+  /* Brand palette */
+  --sv-ink: #000000;
+  --sv-cream: #EEEEE5;
+  --sv-cream-mute: #C8C8C0;
+  --sv-lime: #96b85b;
+  --sv-brand-green: #008C2C;
+  --sv-yellow: #FCB900;
+  --sv-red: #EB5555;
+  --sv-orange: #B95600;
+
+  /* Semantic aliases used across components */
+  --sv-terracotta: var(--sv-orange);
+  --sv-terracotta-hover: #96460a;
+  --sv-amber: var(--sv-yellow);
+  --sv-amber-dark: var(--sv-ink);
+  --sv-border: var(--sv-cream-mute);
   --sv-bg-light: #F8FAFC;
-  --sv-text-main: #1C1917;
+  --sv-text-main: var(--sv-ink);
   --sv-text-muted: #78716C;
-  --sv-green: #16A34A;
-  --sv-green-hover: #15803D;
-  --sv-gray-done: #E7E5E4;
+  --sv-green: var(--sv-lime);
+  --sv-green-hover: var(--sv-brand-green);
+  --sv-gray-done: var(--sv-cream-mute);
 }
 
 /* ==========================================
