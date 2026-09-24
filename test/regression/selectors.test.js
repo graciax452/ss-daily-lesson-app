@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readFixture } from '../setup.js';
+import { readFixture, loadApp } from '../setup.js';
 
 // These tests load real markup captured from the live FluentCommunity DOM
 // (see test/fixtures/*.html and TESTING.md for how/when to re-capture it) and
@@ -54,12 +54,15 @@ describe('nativeNext selector (.fcom_lesson_header .fcom_lesson_nav button[aria-
   });
 });
 
-describe('lesson number parsing source (.fcom_lesson_number)', () => {
-  it('contains a "Lesson X of Y" pattern app.js can parse', () => {
-    mount('lesson-not-completed');
-    const el = document.querySelector('.fcom_lesson_number');
-    expect(el).not.toBeNull();
-    expect(el.textContent).toMatch(/Lesson\s+\d+\s+of\s+\d+/i);
+describe('getLessonNumber()', () => {
+  it('parses the real "Lesson 1 of 2" markup correctly', () => {
+    const { getLessonNumber } = loadApp({ fixture: 'lesson-not-completed' });
+    expect(getLessonNumber()).toBe(1);
+  });
+
+  it('parses the real "Lesson 2 of 2" markup correctly', () => {
+    const { getLessonNumber } = loadApp({ fixture: 'lesson-completed-last' });
+    expect(getLessonNumber()).toBe(2);
   });
 });
 
@@ -82,9 +85,8 @@ describe('Lessons sidebar drawer targeting', () => {
     expect(tocOuterWrapper).not.toBeNull();
   });
 
-  it('reads the course progress percentage from the native progress bar', () => {
-    const el = document.querySelector('.fcom_course_progress_footer .el-progress');
-    expect(el).not.toBeNull();
-    expect(el.getAttribute('aria-valuenow')).toBe('50');
+  it('getCourseProgress() reads the real 50% progress bar correctly', () => {
+    const { getCourseProgress } = loadApp({ fixture: 'lessons-sidebar' });
+    expect(getCourseProgress()).toBe(50);
   });
 });

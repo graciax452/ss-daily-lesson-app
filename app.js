@@ -245,6 +245,124 @@
     });
   }
 
+  // Extract "Lesson X of Y" -> X, from FluentCommunity's own lesson header text
+  function getLessonNumber() {
+    const el = document.querySelector('.fcom_lesson_number');
+    const match = el && el.textContent.match(/Lesson\s+(\d+)\s+of\s+(\d+)/i);
+    return match ? parseInt(match[1], 10) : null;
+  }
+
+  // Read course completion % directly from FluentCommunity's own progress bar
+  function getCourseProgress() {
+    const el = document.querySelector('.fcom_course_progress_footer .el-progress');
+    const val = el && el.getAttribute('aria-valuenow');
+    return val !== null ? parseInt(val, 10) : null;
+  }
+
+  // Count consecutive calendar days, ending at referenceDate, with at least
+  // one completion. referenceDate defaults to now in production; tests pass
+  // a fixed date so results are deterministic.
+  function calculateStreak(completedAtList, referenceDate = new Date()) {
+    const daySet = new Set(completedAtList.map((d) => new Date(d).toISOString().slice(0, 10)));
+    let streak = 0;
+    const cursor = new Date(referenceDate);
+    while (daySet.has(cursor.toISOString().slice(0, 10))) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }
+
+  async function celebrateLessonCompletion(lessonId) {
+    const user = getUserInfo();
+
+    const { error: upsertErr } = await supabase
+      .from('lesson_completions')
+      .upsert([{ user_name: user.name, lesson_id: lessonId }], { onConflict: 'user_name,lesson_id' });
+
+    if (upsertErr) {
+      console.error('Could not record completion:', upsertErr.message);
+      return;
+    }
+
+    const { data: completions } = await supabase
+      .from('lesson_completions')
+      .select('completed_at')
+      .eq('user_name', user.name);
+
+    const streak = calculateStreak((completions || []).map((c) => c.completed_at));
+    const progress = getCourseProgress();
+    const lessonNumber = getLessonNumber();
+
+    const { data: existingMissions } = await supabase
+      .from('lesson_missions')
+      .select('id')
+      .eq('lesson_id', lessonId)
+      .eq('user_name', user.name);
+
+    const hasSubmittedMission = existingMissions && existingMissions.length > 0;
+
+    showCelebrationModal({ lessonNumber, streak, progress, hasSubmittedMission });
+  }
+
+  function showCelebrationModal({ lessonNumber, streak, progress, hasSubmittedMission }) {
+    let wrap = document.getElementById('sv-celebration-modal-wrap');
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = 'sv-celebration-modal-wrap';
+      wrap.className = 'sv-modal-overlay';
+      document.body.appendChild(wrap);
+      wrap.onclick = (e) => { if (e.target === wrap) wrap.classList.remove('is-active'); };
+    }
+
+    const dayLabel = lessonNumber ? `Day ${lessonNumber} Complete!` : 'Lesson Complete!';
+    const progressLabel = progress !== null ? `${progress}%` : '—';
+
+    wrap.innerHTML = `
+      <div class="sv-modal-card sv-celebration-card">
+        <button type="button" id="sv-celebration-close" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:1.5rem; line-height:1; color:#94A3B8; cursor:pointer;">&times;</button>
+        <div style="text-align:center;">
+          <div style="font-size:2.5rem; margin-bottom:8px;">🎉</div>
+          <h2 style="margin:0 0 4px; font-size:1.4rem; font-weight:800; color:var(--sv-ink);">${dayLabel}</h2>
+          <p style="margin:0 0 20px; color:var(--sv-text-muted); font-size:0.95rem;">You did it! Keep the momentum going.</p>
+        </div>
+        <div style="display:flex; gap:12px; margin-bottom:20px;">
+          <div style="flex:1; background:var(--sv-cream); border-radius:14px; padding:16px; text-align:center;">
+            <div style="font-size:1.6rem; font-weight:800; color:var(--sv-orange);">🔥 ${streak}</div>
+            <div style="font-size:0.8rem; color:var(--sv-text-muted); margin-top:4px;">Day Streak</div>
+          </div>
+          <div style="flex:1; background:var(--sv-cream); border-radius:14px; padding:16px; text-align:center;">
+            <div style="font-size:1.6rem; font-weight:800; color:var(--sv-lime);">📊 ${progressLabel}</div>
+            <div style="font-size:0.8rem; color:var(--sv-text-muted); margin-top:4px;">Course Progress</div>
+          </div>
+        </div>
+        ${!hasSubmittedMission ? `
+          <button type="button" id="sv-celebration-submit-mission" style="width:100%; background:var(--sv-terracotta); color:#ffffff; border:none; padding:13px; border-radius:12px; font-weight:700; font-size:0.98rem; cursor:pointer; margin-bottom:10px;">
+            ✍️ Submit Today's Mission
+          </button>
+        ` : ''}
+        <button type="button" id="sv-celebration-continue" style="width:100%; background:${hasSubmittedMission ? 'var(--sv-terracotta)' : 'transparent'}; color:${hasSubmittedMission ? '#ffffff' : 'var(--sv-text-muted)'}; border:${hasSubmittedMission ? 'none' : '1.5px solid var(--sv-border)'}; padding:13px; border-radius:12px; font-weight:700; font-size:0.98rem; cursor:pointer;">
+          Continue
+        </button>
+      </div>
+    `;
+
+    wrap.classList.add('is-active');
+
+    document.getElementById('sv-celebration-close')?.addEventListener('click', () => {
+      wrap.classList.remove('is-active');
+    });
+
+    document.getElementById('sv-celebration-continue')?.addEventListener('click', () => {
+      wrap.classList.remove('is-active');
+    });
+
+    document.getElementById('sv-celebration-submit-mission')?.addEventListener('click', () => {
+      wrap.classList.remove('is-active');
+      document.getElementById('sv-mission-modal-wrap')?.classList.add('is-active');
+    });
+  }
+
   function mountUI() {
     if (document.body.getAttribute('data-route') !== 'view_lesson') return;
 
@@ -360,7 +478,22 @@
         });
 
         document.getElementById('sv-trigger-complete-btn')?.addEventListener('click', () => {
-          if (nativeComplete) nativeComplete.click();
+          if (!nativeComplete) return;
+          nativeComplete.click();
+
+          const targetLessonId = getLessonId();
+          let attempts = 0;
+          const poll = setInterval(() => {
+            attempts++;
+            const btn = document.querySelector('.fcom_back_space .fcom_lesson_nav .el-button--info');
+            const nowCompleted = btn && btn.textContent.trim().toLowerCase() === 'completed';
+            if (nowCompleted) {
+              clearInterval(poll);
+              celebrateLessonCompletion(targetLessonId);
+            } else if (attempts > 20) {
+              clearInterval(poll);
+            }
+          }, 200);
         });
 
         document.getElementById('sv-trigger-next-btn')?.addEventListener('click', () => {
@@ -517,6 +650,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { getLessonId, getUserInfo, mountUI, scheduleMountUI };
+    module.exports = { getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak };
   }
 })();
