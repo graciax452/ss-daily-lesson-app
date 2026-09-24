@@ -70,7 +70,7 @@
       .order('created_at', { ascending: false });
 
     if (error) {
-      list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--sv-red); font-size:0.85rem;">Error loading submissions: ${error.message}</div>`;
+      list.innerHTML = `<div style="text-align:center; padding:20px; color:#DC2626; font-size:0.85rem;">Error loading submissions: ${error.message}</div>`;
       return;
     }
 
@@ -87,11 +87,11 @@
       const canDelete = currentUser.isAdmin || (currentUser.name && currentUser.name === cleanAuthor);
 
       return `
-        <div class="sv-mission-card" style="background:#ffffff; border:1px solid var(--sv-border); border-radius:14px; padding:14px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+        <div class="sv-mission-card" style="background:#ffffff; border:1px solid #E7E5E4; border-radius:14px; padding:14px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
           <!-- Card Header -->
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
             <div style="display:flex; align-items:center; gap:10px;">
-              ${m.user_avatar ? `<img src="${m.user_avatar}" style="width:34px; height:34px; border-radius:50%; object-fit:cover;">` : `<div style="width:34px; height:34px; border-radius:50%; background:var(--sv-cream); color:var(--sv-orange); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">${initial}</div>`}
+              ${m.user_avatar ? `<img src="${m.user_avatar}" style="width:34px; height:34px; border-radius:50%; object-fit:cover;">` : `<div style="width:34px; height:34px; border-radius:50%; background:#FEF3C7; color:#B45309; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">${initial}</div>`}
               <div>
                 <div style="font-weight:700; font-size:0.9rem; color:#1C1917;">${cleanAuthor}</div>
                 <div style="font-size:0.75rem; color:#A8A29E;">${new Date(m.created_at).toLocaleDateString()}</div>
@@ -99,7 +99,7 @@
             </div>
             
             ${canDelete ? `
-              <button type="button" class="sv-delete-mission-btn" data-mission-id="${m.id}" title="Delete Submission" style="background:rgba(235,85,85,0.12); border:none; color:var(--sv-red); border-radius:6px; padding:4px 8px; font-size:0.78rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+              <button type="button" class="sv-delete-mission-btn" data-mission-id="${m.id}" title="Delete Submission" style="background:#FEE2E2; border:none; color:#DC2626; border-radius:6px; padding:4px 8px; font-size:0.78rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
                 🗑️ Delete
               </button>
             ` : ''}
@@ -123,7 +123,7 @@
           </div>
 
           <!-- Replies Section -->
-          <div id="sv-replies-${m.id}" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--sv-border); display:${replies.length > 0 ? 'block' : 'none'};">
+          <div id="sv-replies-${m.id}" style="margin-top:10px; padding-top:8px; border-top:1px dashed #E7E5E4; display:${replies.length > 0 ? 'block' : 'none'};">
             <div class="sv-replies-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">
               ${replies.map(r => {
                 const cleanReplyAuthor = (r.user_name || 'Learner').replace(/[()[\]{}<>]/g, '').trim();
@@ -135,7 +135,7 @@
                       <span style="color:#44403C;">${r.reply_text}</span>
                     </div>
                     ${canDeleteReply ? `
-                      <button type="button" class="sv-delete-reply-btn" data-reply-id="${r.id}" title="Delete Reply" style="background:none; border:none; color:var(--sv-red); opacity:0.7; cursor:pointer; font-size:0.85rem; padding:2px 6px; line-height:1;">
+                      <button type="button" class="sv-delete-reply-btn" data-reply-id="${r.id}" title="Delete Reply" style="background:none; border:none; color:#DC2626; opacity:0.7; cursor:pointer; font-size:0.85rem; padding:2px 6px; line-height:1;">
                         ✕
                       </button>
                     ` : ''}
@@ -289,57 +289,18 @@
           isCompleted = true;
       }
 
-      const svIconCircle = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"></circle></svg>`;
-      const svIconCheck = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
-      const svIconArrow = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
-      const svIconPencil = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
-      const svIconPin = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s7-7.58 7-13a7 7 0 1 0-14 0c0 5.42 7 13 7 13z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="12" cy="9" r="2.5" stroke="currentColor" stroke-width="2"></circle></svg>`;
-
-      // Tag the Lessons sidebar's actual outer wrapper (unknown class name) so CSS can turn it into a drawer
-      const tocTitle = document.querySelector('.fcom_section_sidebar_title');
-      const tocScrollbarRoot = tocTitle ? tocTitle.closest('.el-scrollbar') : null;
-      const tocOuterWrapper = tocScrollbarRoot ? tocScrollbarRoot.parentElement : null;
-      if (tocOuterWrapper && !tocOuterWrapper.classList.contains('sv-toc-drawer')) {
-        tocOuterWrapper.classList.add('sv-toc-drawer');
-      }
-
-      // Custom "Toggle lessons" icon, placed in the native top bar just before Complete/Completed
-      if (nativeComplete && !document.getElementById('sv-toc-toggle-btn')) {
-        const tocBtn = document.createElement('button');
-        tocBtn.type = 'button';
-        tocBtn.id = 'sv-toc-toggle-btn';
-        tocBtn.className = 'sv-icon-btn-topnav';
-        tocBtn.setAttribute('aria-label', 'Toggle lessons list');
-        tocBtn.innerHTML = svIconPin;
-        tocBtn.addEventListener('click', () => {
-          document.body.classList.toggle('sv-toc-open');
-        });
-        nativeComplete.parentElement.insertBefore(tocBtn, nativeComplete);
-      }
-
-      // Backdrop for the drawer, click to close
-      if (!document.getElementById('sv-toc-backdrop')) {
-        const backdrop = document.createElement('div');
-        backdrop.id = 'sv-toc-backdrop';
-        backdrop.className = 'sv-toc-backdrop';
-        backdrop.addEventListener('click', () => {
-          document.body.classList.remove('sv-toc-open');
-        });
-        document.body.appendChild(backdrop);
-      }
-
       let rightBtnHtml = '';
       if (isCompleted && nativeNext) {
-          rightBtnHtml = `<button type="button" class="sv-btn sv-btn-next" id="sv-trigger-next-btn">${svIconCheck} Complete ${svIconArrow}</button>`;
+          rightBtnHtml = `<button type="button" class="sv-btn sv-btn-next" id="sv-trigger-next-btn">Next Lesson ➡️</button>`;
       } else if (isCompleted && !nativeNext) {
-          rightBtnHtml = `<button type="button" class="sv-btn sv-btn-done" disabled>${svIconCheck} Lesson Completed</button>`;
+          rightBtnHtml = `<button type="button" class="sv-btn sv-btn-done" disabled><span>✓</span> Lesson Completed</button>`;
       } else if (!isCompleted && nativeComplete) {
-          rightBtnHtml = `<button type="button" class="sv-btn sv-btn-complete" id="sv-trigger-complete-btn">${svIconCircle} Mark Lesson Complete</button>`;
+          rightBtnHtml = `<button type="button" class="sv-btn sv-btn-complete" id="sv-trigger-complete-btn"><span>○</span> Mark Lesson Complete</button>`;
       }
 
       const desiredHtml = `
         <button type="button" class="sv-btn sv-btn-submit" id="sv-open-modal-btn">
-          ${svIconPencil} Submit Mission
+          <span>✍️</span> Submit Mission
         </button>
         ${rightBtnHtml}
       `;
