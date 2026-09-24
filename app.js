@@ -291,7 +291,7 @@
 
       let rightBtnHtml = '';
       if (isCompleted && nativeNext) {
-          rightBtnHtml = `<button type="button" class="sv-btn sv-btn-next" id="sv-trigger-next-btn">Next Lesson ➡️</button>`;
+          rightBtnHtml = `<button type="button" class="sv-btn sv-btn-next" id="sv-trigger-next-btn"><span>✓</span> Complete ➡️</button>`;
       } else if (isCompleted && !nativeNext) {
           rightBtnHtml = `<button type="button" class="sv-btn sv-btn-done" disabled><span>✓</span> Lesson Completed</button>`;
       } else if (!isCompleted && nativeComplete) {
