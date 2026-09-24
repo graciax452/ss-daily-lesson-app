@@ -436,21 +436,34 @@
     }
   }
 
+  // Debounce mountUI(): a single lesson navigation can fire many DOM mutations
+  // in quick succession (FluentCommunity tearing down/rebuilding content), and
+  // without this, each one would trigger a full, unconditional re-render.
+  let mountUIScheduled = false;
+  function scheduleMountUI() {
+    if (mountUIScheduled) return;
+    mountUIScheduled = true;
+    setTimeout(() => {
+      mountUIScheduled = false;
+      mountUI();
+    }, 150);
+  }
+
   let lastSeenLessonId = getLessonId();
   setInterval(() => {
     const currentLessonId = getLessonId();
     const wrap = document.getElementById('sv-submissions-feed-wrap');
     if (currentLessonId !== lastSeenLessonId || (document.querySelector('.fcom_lesson_comments') && !wrap)) {
       lastSeenLessonId = currentLessonId;
-      mountUI();
+      scheduleMountUI();
     }
   }, 250);
 
   window.addEventListener('popstate', () => {
-    setTimeout(mountUI, 50);
+    setTimeout(scheduleMountUI, 50);
   });
 
-  const observer = new MutationObserver(mountUI);
+  const observer = new MutationObserver(scheduleMountUI);
   observer.observe(document.body, { childList: true, subtree: true });
   document.addEventListener('DOMContentLoaded', mountUI);
 })();
