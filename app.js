@@ -24,12 +24,20 @@
     let avatar = '';
     let isAdmin = false;
 
-    const u = window.fluentComAdmin?.current_user || window.fluentComAdmin?.me || window.fcom_user;
+    // window.fluentComAdmin has no .current_user/.me - the real logged-in
+    // user object lives at window.fluentComAdmin.auth (confirmed via live
+    // console inspection). Admin status isn't a simple top-level flag either:
+    // it shows up as super_admin/community_admin inside each space's own
+    // permissions object.
+    const u = window.fluentComAdmin?.auth || window.fcom_user;
     if (u) {
       name = u.display_name || u.name || u.first_name || '';
       avatar = u.avatar || u.avatar_url || '';
-      const roles = u.roles || [];
-      isAdmin = roles.includes('administrator') || u.is_admin === true;
+      const roles = u.roles || u.community_roles || [];
+      const spacePermissions = Object.values(u.spaces || {}).map((s) => s.permissions || {});
+      isAdmin = roles.includes('administrator')
+        || u.is_admin === true
+        || spacePermissions.some((p) => p.super_admin === true || p.community_admin === true);
     }
 
     if (!isAdmin) {
