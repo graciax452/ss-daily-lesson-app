@@ -314,6 +314,20 @@
         document.body.appendChild(backdrop);
       }
 
+      // Toggle icon in the native top bar, just before Complete/Completed
+      if (nativeComplete && !document.getElementById('sv-toc-toggle-btn')) {
+        const tocBtn = document.createElement('button');
+        tocBtn.type = 'button';
+        tocBtn.id = 'sv-toc-toggle-btn';
+        tocBtn.className = 'sv-icon-btn-topnav';
+        tocBtn.setAttribute('aria-label', 'Toggle lessons list');
+        tocBtn.innerHTML = svIconPin;
+        tocBtn.addEventListener('click', () => {
+          document.body.classList.toggle('sv-toc-open');
+        });
+        nativeComplete.parentElement.insertBefore(tocBtn, nativeComplete);
+      }
+
       let rightBtnHtml = '';
       if (isCompleted && nativeNext) {
           rightBtnHtml = `<button type="button" class="sv-btn sv-btn-next" id="sv-trigger-next-btn">${svIconCheck} Complete ${svIconArrow}</button>`;
@@ -328,7 +342,6 @@
           ${svIconPencil} Submit Mission
         </button>
         ${rightBtnHtml}
-        <button type="button" class="sv-icon-btn" id="sv-toc-toggle-btn" aria-label="Toggle lessons list">${svIconPin}</button>
       `;
 
       if (buttonStack.innerHTML !== desiredHtml) {
@@ -336,10 +349,6 @@
 
         document.getElementById('sv-open-modal-btn')?.addEventListener('click', () => {
           document.getElementById('sv-mission-modal-wrap').classList.add('is-active');
-        });
-
-        document.getElementById('sv-toc-toggle-btn')?.addEventListener('click', () => {
-          document.body.classList.toggle('sv-toc-open');
         });
 
         document.getElementById('sv-trigger-complete-btn')?.addEventListener('click', () => {
