@@ -154,21 +154,22 @@
   cursor: default;
 }
 
-.sv-icon-btn {
+.sv-icon-btn-topnav {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
-  border: 1.5px solid var(--sv-border);
-  border-radius: 999px;
-  background: #ffffff;
+  width: 32px;
+  height: 32px;
+  margin-left: 15px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
   color: var(--sv-text-muted);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.sv-icon-btn:hover {
+.sv-icon-btn-topnav:hover {
   background: var(--sv-cream);
   color: var(--sv-ink);
 }
@@ -247,8 +248,4 @@ body.sv-toc-open .sv-toc-backdrop {
 
 .sv-modal-overlay.is-active .sv-modal-card {
   transform: translateY(0);
-}
-
-.sv-celebration-card {
-  position: relative;
 }
