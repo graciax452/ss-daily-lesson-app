@@ -459,22 +459,7 @@
         });
 
         document.getElementById('sv-trigger-complete-btn')?.addEventListener('click', () => {
-          if (!nativeComplete) return;
-          nativeComplete.click();
-
-          const targetLessonId = getLessonId();
-          let attempts = 0;
-          const poll = setInterval(() => {
-            attempts++;
-            const btn = document.querySelector('.fcom_back_space .fcom_lesson_nav .el-button--info');
-            const nowCompleted = btn && btn.textContent.trim().toLowerCase() === 'completed';
-            if (nowCompleted) {
-              clearInterval(poll);
-              celebrateLessonCompletion(targetLessonId);
-            } else if (attempts > 20) {
-              clearInterval(poll);
-            }
-          }, 200);
+          if (nativeComplete) nativeComplete.click();
         });
 
         document.getElementById('sv-trigger-next-btn')?.addEventListener('click', () => {
