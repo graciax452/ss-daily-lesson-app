@@ -41,7 +41,7 @@
     return {
       name: name || 'Tsitsi C',
       avatar: avatar || '',
-      isAdmin: true 
+      isAdmin: isAdmin
     };
   }
 
@@ -505,4 +505,10 @@
   const observer = new MutationObserver(scheduleMountUI);
   observer.observe(document.body, { childList: true, subtree: true });
   document.addEventListener('DOMContentLoaded', mountUI);
+
+  // Test-only hook: never runs in a browser (typeof module is undefined there).
+  // Lets the test suite require() the real functions instead of duplicating them.
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { getLessonId, getUserInfo, mountUI, scheduleMountUI };
+  }
 })();

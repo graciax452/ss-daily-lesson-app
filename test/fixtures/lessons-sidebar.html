@@ -1,0 +1,46 @@
+<!--
+  The real FluentCommunity markup captured during debugging only went as
+  deep as .el-scrollbar__wrap - its own parent (what actually gives this
+  panel a fixed width/pink background) was never identified, which is why
+  the drawer feature targets .el-scrollbar itself via JS traversal rather
+  than a guessed CSS selector for that unknown parent. The .el-scrollbar
+  wrapper below IS real: it's Element Plus's own, documented, stable
+  wrapping element for every <ElScrollbar> component, not a guess.
+-->
+<div class="el-scrollbar">
+  <div class="el-scrollbar__wrap el-scrollbar__wrap--hidden-default">
+    <div class="el-scrollbar__view">
+      <div class="fcom_section_sidebar_title">
+        <h3>Lessons</h3>
+        <button type="button" class="el-button is-text fcom_toc_control fcom_toc_close" aria-label="Close"></button>
+      </div>
+      <div class="fcom_section_items">
+        <div class="fcom_section_primary">
+          <div class="fcom_section_primary_item">
+            <div class="fcom_section_primary_item_title">
+              <h4>Getting Started</h4>
+            </div>
+          </div>
+          <div class="fcom_current_lesson fcom_section_item">
+            <div id="fcom_lesson_title_75" class="fcom_section_item_title">
+              <p class="fcom_heading_item clickable"><span>How to learn Shona</span></p>
+            </div>
+          </div>
+          <div class="fcom_section_item">
+            <div id="fcom_lesson_title_76" class="fcom_section_item_title">
+              <p class="fcom_heading_item clickable"><span>How to make a plan</span></p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="fcom_section_footer course_progress_footer_wrap">
+        <div class="fcom_course_progress_footer">
+          <p>Course progress</p>
+          <div class="el-progress el-progress--line fcom_progress" role="progressbar" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
+            <div class="el-progress__text"><span>50%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

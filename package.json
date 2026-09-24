@@ -1,0 +1,20 @@
+{
+  "name": "ss-daily-lesson-app",
+  "private": true,
+  "type": "commonjs",
+  "description": "Custom JS/CSS for the Speak Shona FluentCommunity lesson pages, deployed raw via jsDelivr (no build step). This package.json exists only for the test toolchain.",
+  "scripts": {
+    "pretest": "node --check app.js && node scripts/check-self-closing-svg.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint:svg": "node scripts/check-self-closing-svg.js",
+    "lint:syntax": "node --check app.js",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "fast-check": "^3.22.0",
+    "husky": "^9.1.6",
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.4"
+  }
+}
