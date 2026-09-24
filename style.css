@@ -174,9 +174,40 @@
   color: var(--sv-ink);
 }
 
-/* Collapse the native Lessons sidebar (Element Plus scrollbar root, found via its content) */
-body.sv-toc-collapsed .el-scrollbar:has(.fcom_section_sidebar_title) {
-  display: none !important;
+/* Lessons sidebar drawer: hidden off-screen by default (no reserved layout space),
+   slides in as a floating panel when body.sv-toc-open is toggled */
+.sv-toc-drawer {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  height: 100vh !important;
+  width: 320px !important;
+  max-width: 85vw !important;
+  z-index: 99998 !important;
+  background: #ffffff !important;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15) !important;
+  transform: translateX(100%) !important;
+  transition: transform 0.3s ease !important;
+  overflow-y: auto !important;
+}
+
+body.sv-toc-open .sv-toc-drawer {
+  transform: translateX(0) !important;
+}
+
+.sv-toc-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 99997;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+body.sv-toc-open .sv-toc-backdrop {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* ==========================================

@@ -295,6 +295,14 @@
       const svIconPencil = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
       const svIconPin = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 22s7-7.58 7-13a7 7 0 1 0-14 0c0 5.42 7 13 7 13z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="12" cy="9" r="2.5" stroke="currentColor" stroke-width="2"></circle></svg>`;
 
+      // Tag the Lessons sidebar's actual outer wrapper (unknown class name) so CSS can turn it into a drawer
+      const tocTitle = document.querySelector('.fcom_section_sidebar_title');
+      const tocScrollbarRoot = tocTitle ? tocTitle.closest('.el-scrollbar') : null;
+      const tocOuterWrapper = tocScrollbarRoot ? tocScrollbarRoot.parentElement : null;
+      if (tocOuterWrapper && !tocOuterWrapper.classList.contains('sv-toc-drawer')) {
+        tocOuterWrapper.classList.add('sv-toc-drawer');
+      }
+
       // Custom "Toggle lessons" icon, placed in the native top bar just before Complete/Completed
       if (nativeComplete && !document.getElementById('sv-toc-toggle-btn')) {
         const tocBtn = document.createElement('button');
@@ -304,9 +312,20 @@
         tocBtn.setAttribute('aria-label', 'Toggle lessons list');
         tocBtn.innerHTML = svIconPin;
         tocBtn.addEventListener('click', () => {
-          document.body.classList.toggle('sv-toc-collapsed');
+          document.body.classList.toggle('sv-toc-open');
         });
         nativeComplete.parentElement.insertBefore(tocBtn, nativeComplete);
+      }
+
+      // Backdrop for the drawer, click to close
+      if (!document.getElementById('sv-toc-backdrop')) {
+        const backdrop = document.createElement('div');
+        backdrop.id = 'sv-toc-backdrop';
+        backdrop.className = 'sv-toc-backdrop';
+        backdrop.addEventListener('click', () => {
+          document.body.classList.remove('sv-toc-open');
+        });
+        document.body.appendChild(backdrop);
       }
 
       let rightBtnHtml = '';
