@@ -328,7 +328,7 @@
       wrap.onclick = (e) => { if (e.target === wrap) wrap.classList.remove('is-active'); };
     }
 
-    const dayLabel = lessonNumber ? `Day ${lessonNumber} Complete!` : 'Lesson Complete!';
+    const dayLabel = lessonNumber ? `Lesson ${lessonNumber} Complete!` : 'Lesson Complete!';
     const progressLabel = progress !== null ? `${progress}%` : '—';
 
     wrap.innerHTML = `
