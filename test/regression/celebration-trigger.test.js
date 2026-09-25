@@ -1,53 +1,30 @@
 import { describe, it, expect } from 'vitest';
 import { loadApp } from '../setup.js';
 
-// Guards against the exact bug found live: a separately time-boxed poll
-// duplicating mountUI()'s own isCompleted detection could time out before
-// the native "Completed" state actually appeared, silently never showing the
-// celebration modal. The fix ties the trigger directly to mountUI()'s own
-// (already reliable) detection via a false->true transition check, which
-// these tests exercise directly instead of racing a real timer.
+// Superseded design: an earlier version tried to detect a genuine
+// not-completed -> completed transition via mountUI()'s own state tracking,
+// to avoid a time-boxed poll that could give up before FluentCommunity's
+// native state actually flipped. That broke for a different real reason:
+// lessons were being manually marked done/undone repeatedly during testing,
+// and the tracked state didn't survive page reloads between toggles.
 //
-// Uses the full-lesson-page fixture specifically: mountUI() only reaches the
-// transition-check code when it finds .fcom_lesson_details .fcom_lesson_content,
-// which the header-only fixtures (lesson-completed/lesson-not-completed) don't
-// include.
+// Current design is simpler and doesn't depend on native state at all:
+// clicking "Mark Lesson Complete" fires celebrateLessonCompletion()
+// immediately, alongside the native click - we're recording our own
+// completion independently, so there's nothing to wait for or detect.
 
 function waitForMicrotasks() {
-  // celebrateLessonCompletion() makes several sequential awaited Supabase
-  // calls; the mock resolves each one immediately, but each await schedules
-  // a fresh microtask only once the previous one settles, so a single tick
-  // isn't always enough to flush the whole chain.
   return new Promise((resolve) => setTimeout(resolve, 10));
 }
 
-function markNativeCompleted() {
-  const btn = document.querySelector('.fcom_back_space .fcom_lesson_nav .el-button--info');
-  btn.textContent = 'Completed';
-  btn.classList.remove('fcom_primary_button');
-}
-
-describe('celebration modal trigger (mountUI transition detection)', () => {
-  it('does NOT show the celebration modal on first load of an already-completed lesson', async () => {
+describe('celebration modal trigger (fires on click, not on detected state)', () => {
+  it('shows the celebration modal immediately when Mark Lesson Complete is clicked', async () => {
     const { mountUI } = loadApp({ fixture: 'full-lesson-page' });
-    markNativeCompleted();
-
     mountUI();
-    await waitForMicrotasks();
 
-    const wrap = document.getElementById('sv-celebration-modal-wrap');
-    expect(wrap === null || !wrap.classList.contains('is-active')).toBe(true);
-  });
-
-  it('shows the celebration modal on a genuine not-completed -> completed transition', async () => {
-    const { mountUI } = loadApp({ fixture: 'full-lesson-page' });
-
-    mountUI();
-    await waitForMicrotasks();
     expect(document.getElementById('sv-celebration-modal-wrap')).toBeNull();
 
-    markNativeCompleted();
-    mountUI();
+    document.getElementById('sv-trigger-complete-btn').click();
     await waitForMicrotasks();
 
     const wrap = document.getElementById('sv-celebration-modal-wrap');
@@ -55,23 +32,27 @@ describe('celebration modal trigger (mountUI transition detection)', () => {
     expect(wrap.classList.contains('is-active')).toBe(true);
   });
 
-  it('does not re-show the modal on a further mountUI() call once already completed', async () => {
+  it('does not show anything on page load alone, without a click', async () => {
     const { mountUI } = loadApp({ fixture: 'full-lesson-page' });
-
     mountUI();
     await waitForMicrotasks();
 
-    markNativeCompleted();
+    expect(document.getElementById('sv-celebration-modal-wrap')).toBeNull();
+  });
+
+  it('fires again on a second click (e.g. after manually toggling a lesson back to incomplete and re-completing it)', async () => {
+    const { mountUI } = loadApp({ fixture: 'full-lesson-page' });
     mountUI();
+
+    document.getElementById('sv-trigger-complete-btn').click();
     await waitForMicrotasks();
 
     const wrap = document.getElementById('sv-celebration-modal-wrap');
-    expect(wrap).not.toBeNull();
-    wrap.classList.remove('is-active'); // simulate the user closing it
+    wrap.classList.remove('is-active'); // simulate closing it
 
-    mountUI();
+    document.getElementById('sv-trigger-complete-btn').click();
     await waitForMicrotasks();
 
-    expect(wrap.classList.contains('is-active')).toBe(false);
+    expect(wrap.classList.contains('is-active')).toBe(true);
   });
 });

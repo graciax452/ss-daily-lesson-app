@@ -376,15 +376,6 @@
     });
   }
 
-  // Tracks the last-seen isCompleted state per lesson, so the celebration
-  // modal fires exactly once per genuine false->true transition observed in
-  // this session - never on page load of an already-completed lesson (first
-  // observation is undefined, not false, so it's skipped), and never twice
-  // for the same completion. Ties the trigger directly to the same detection
-  // mountUI() already reliably performs, instead of a separately time-boxed
-  // poll that could time out before the native state actually updated.
-  const lessonCompletionSeen = new Map();
-
   function mountUI() {
     if (document.body.getAttribute('data-route') !== 'view_lesson') return;
 
@@ -435,13 +426,6 @@
       let isCompleted = false;
       if (nativeComplete && nativeComplete.textContent.trim().toLowerCase() === 'completed') {
           isCompleted = true;
-      }
-
-      const currentLessonIdForCelebration = getLessonId();
-      const previouslySeenCompleted = lessonCompletionSeen.get(currentLessonIdForCelebration);
-      lessonCompletionSeen.set(currentLessonIdForCelebration, isCompleted);
-      if (isCompleted && previouslySeenCompleted === false) {
-        celebrateLessonCompletion(currentLessonIdForCelebration);
       }
 
       const svIconCircle = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"></circle></svg>`;
@@ -508,6 +492,12 @@
 
         document.getElementById('sv-trigger-complete-btn')?.addEventListener('click', () => {
           if (nativeComplete) nativeComplete.click();
+          // Fires immediately rather than waiting for/polling FluentCommunity's
+          // own state to confirm - we're recording our own completion record
+          // independently, so there's nothing to wait for. Simpler and more
+          // robust than tracking a live transition, which broke when lessons
+          // get manually marked done/undone repeatedly (e.g. during testing).
+          celebrateLessonCompletion(getLessonId());
         });
 
         document.getElementById('sv-trigger-next-btn')?.addEventListener('click', () => {
