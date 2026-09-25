@@ -369,9 +369,9 @@
     const calendarHtml = dayLetters.map((letter, i) => {
       const done = weekMap && weekMap[i];
       const isToday = i === todayIndex;
-      const circleBg = done ? 'var(--sv-lime)' : 'var(--sv-cream-mute)';
-      const circleColor = done ? 'var(--sv-ink)' : 'var(--sv-text-muted)';
-      const ring = isToday ? 'box-shadow:0 0 0 2px var(--sv-orange);' : '';
+      const circleBg = done ? 'var(--sv-orange)' : 'var(--sv-cream-mute)';
+      const circleColor = done ? '#ffffff' : 'var(--sv-text-muted)';
+      const ring = isToday ? 'box-shadow:0 0 0 2px var(--sv-ink);' : '';
       return `
         <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
           <div style="width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:${circleBg}; color:${circleColor}; ${ring}">
@@ -397,7 +397,7 @@
     const dayInWeek = lessonNumber ? ((lessonNumber - 1) % 7) + 1 : null;
     const weekSegments = Array.from({ length: 7 }, (_, i) => {
       const filled = dayInWeek !== null && i < dayInWeek;
-      return `<div style="flex:1; height:6px; border-radius:3px; background:${filled ? 'var(--sv-lime)' : 'var(--sv-cream-mute)'};"></div>`;
+      return `<div style="flex:1; height:6px; border-radius:3px; background:${filled ? 'var(--sv-orange)' : 'var(--sv-cream-mute)'};"></div>`;
     }).join('');
 
     wrap.innerHTML = `
@@ -420,7 +420,7 @@
           <div style="position:relative; width:140px; height:140px; margin:0 auto 12px;">
             <svg width="140" height="140" viewBox="0 0 140 140" style="transform:rotate(-90deg);">
               <circle cx="70" cy="70" r="${ringRadius}" fill="none" stroke="var(--sv-cream-mute)" stroke-width="12"></circle>
-              <circle cx="70" cy="70" r="${ringRadius}" fill="none" stroke="var(--sv-lime)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${ringCircumference}" stroke-dashoffset="${ringDashOffset}"></circle>
+              <circle cx="70" cy="70" r="${ringRadius}" fill="none" stroke="var(--sv-orange)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${ringCircumference}" stroke-dashoffset="${ringDashOffset}"></circle>
             </svg>
             <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center;">
               <div style="font-size:1.7rem; font-weight:800; color:var(--sv-ink);">${progressLabel}</div>
