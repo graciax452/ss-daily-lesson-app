@@ -142,7 +142,12 @@
     `;
   }
 
-  document.addEventListener('DOMContentLoaded', renderDashboard);
+  // Not `document.addEventListener('DOMContentLoaded', renderDashboard)`
+  // directly - the listener passes a real Event object as the first
+  // argument, which satisfies the `lessons = LESSONS` default param (defaults
+  // only apply to `undefined`) and crashes getCurrentLesson() with the Event
+  // in place of the manifest array.
+  document.addEventListener('DOMContentLoaded', () => renderDashboard());
 
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   if (typeof module !== 'undefined' && module.exports) {

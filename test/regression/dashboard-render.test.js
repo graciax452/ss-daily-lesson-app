@@ -60,6 +60,17 @@ describe('renderDashboard()', () => {
     expect(root.textContent).toContain('All caught up');
   });
 
+  it('does not crash when the real DOMContentLoaded listener fires (regression: the Event object must not leak into the lessons param)', async () => {
+    loadDashboard();
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const root = document.getElementById('sv-dashboard-root');
+    expect(root.textContent).not.toContain('Loading your progress');
+  });
+
   it('does nothing if #sv-dashboard-root is missing from the page', async () => {
     const { renderDashboard } = loadDashboard();
     document.body.innerHTML = '';
