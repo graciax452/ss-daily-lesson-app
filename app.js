@@ -492,12 +492,16 @@
 
         document.getElementById('sv-trigger-complete-btn')?.addEventListener('click', () => {
           if (nativeComplete) nativeComplete.click();
-          // Fires immediately rather than waiting for/polling FluentCommunity's
-          // own state to confirm - we're recording our own completion record
-          // independently, so there's nothing to wait for. Simpler and more
-          // robust than tracking a live transition, which broke when lessons
-          // get manually marked done/undone repeatedly (e.g. during testing).
-          celebrateLessonCompletion(getLessonId());
+          // Always fires (no waiting for/polling FluentCommunity's own state
+          // to confirm anything - we're recording our own completion record
+          // independently, so there's nothing to conditionally wait for; that
+          // approach broke when lessons get manually marked done/undone).
+          // A short FIXED delay (not a condition to wait on, so it can't get
+          // stuck) gives FluentCommunity's own course-progress bar time to
+          // recalculate after its native completion AJAX call, since reading
+          // it at the instant of the click was grabbing the stale value.
+          const targetLessonId = getLessonId();
+          setTimeout(() => celebrateLessonCompletion(targetLessonId), 1500);
         });
 
         document.getElementById('sv-trigger-next-btn')?.addEventListener('click', () => {
