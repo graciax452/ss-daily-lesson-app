@@ -337,3 +337,89 @@ body.sv-toc-open .sv-toc-backdrop {
   padding: 12px 28px;
   border-radius: 999px;
 }
+
+.sv-dash-cal {
+  background: #ffffff;
+  border: 1.5px solid var(--sv-border);
+  border-radius: 20px;
+  padding: 20px;
+  margin-top: 16px;
+}
+
+.sv-dash-cal-title {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--sv-text-main);
+  margin-bottom: 12px;
+}
+
+.sv-dash-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.sv-dash-cal-weekday {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--sv-text-muted);
+  padding-bottom: 6px;
+}
+
+.sv-dash-cal-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--sv-text-muted);
+}
+
+.sv-dash-cal-cell.sv-dash-cal-done {
+  background: var(--sv-orange-light);
+  color: var(--sv-ink);
+  font-weight: 700;
+}
+
+.sv-dash-cal-cell.sv-dash-cal-today {
+  border: 2px solid var(--sv-orange);
+  color: var(--sv-orange);
+  font-weight: 700;
+}
+
+.sv-dash-cal-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 14px;
+  font-size: 0.76rem;
+  color: var(--sv-text-muted);
+}
+
+.sv-dash-cal-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sv-dash-cal-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.sv-dash-cal-dot-done {
+  background: var(--sv-orange-light);
+}
+
+.sv-dash-cal-dot-today {
+  background: #ffffff;
+  border: 2px solid var(--sv-orange);
+}
+
+.sv-dash-cal-dot-upcoming {
+  background: var(--sv-track-light);
+}

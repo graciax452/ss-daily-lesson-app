@@ -287,6 +287,36 @@
     return week;
   }
 
+  // Full calendar grid for the month containing referenceDate: leading nulls
+  // for padding before the 1st (aligned to Sunday-start, matching the S M T
+  // W T F S header the Home dashboard renders), then one entry per real day
+  // with its done/isToday status.
+  function getMonthCompletionMap(completedAtList, referenceDate = new Date()) {
+    const daySet = new Set(completedAtList.map((d) => new Date(d).toISOString().slice(0, 10)));
+
+    // Everything below derives from the same UTC calendar day, rather than
+    // mixing local-time getFullYear()/getMonth() with UTC-based date-key
+    // comparisons - that mix breaks right at UTC-midnight referenceDates,
+    // where the local calendar day and the UTC calendar day disagree.
+    const todayKey = new Date(referenceDate).toISOString().slice(0, 10);
+    const [year, month] = todayKey.split('-').map(Number);
+    const monthIndex = month - 1; // 0-indexed, to match Date's own convention
+
+    const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+    const startWeekday = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay();
+
+    const days = [];
+    for (let i = 0; i < startWeekday; i++) {
+      days.push(null);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = new Date(Date.UTC(year, monthIndex, d)).toISOString().slice(0, 10);
+      days.push({ day: d, done: daySet.has(key), isToday: key === todayKey });
+    }
+
+    return { year, month: monthIndex, days };
+  }
+
   // Count consecutive calendar days, ending at referenceDate, with at least
   // one completion. referenceDate defaults to now in production; tests pass
   // a fixed date so results are deterministic.
@@ -767,9 +797,22 @@
     const feedBox = document.querySelector('.fcom_feed_box');
     if (!feedBox) return;
 
-    if (document.getElementById('sv-feed-dashboard')) return;
+    let banner = document.getElementById('sv-feed-dashboard');
 
-    const banner = document.createElement('div');
+    // Home is dashboard-only, not a hybrid feed+dashboard view - hide every
+    // native sibling (welcome banner, post composer, post list) every time
+    // this runs, not just once, so it stays hidden even if Vue reactively
+    // adds a new post or re-shows something later. Hidden via display:none,
+    // never removed, so Vue can still safely manage/re-render these elements
+    // without our interference - same pattern already proven safe for the
+    // lesson page's native comments area in mountLessonUI().
+    Array.from(feedBox.children).forEach((child) => {
+      if (child !== banner) child.style.display = 'none';
+    });
+
+    if (banner) return; // content already rendered this session
+
+    banner = document.createElement('div');
     banner.id = 'sv-feed-dashboard';
     feedBox.insertBefore(banner, feedBox.firstChild);
 
@@ -830,6 +873,31 @@
       `;
     }
 
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const dayLetters = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const monthMap = getMonthCompletionMap(completedDates);
+
+    const calendarCellsHtml = monthMap.days.map((d) => {
+      if (!d) return '<div class="sv-dash-cal-cell sv-dash-cal-empty"></div>';
+      const stateClass = d.done ? 'sv-dash-cal-done' : (d.isToday ? 'sv-dash-cal-today' : '');
+      return `<div class="sv-dash-cal-cell ${stateClass}">${d.day}</div>`;
+    }).join('');
+
+    const calendarHtml = `
+      <div class="sv-dash-cal">
+        <div class="sv-dash-cal-title">${monthNames[monthMap.month]} ${monthMap.year}</div>
+        <div class="sv-dash-cal-grid">
+          ${dayLetters.map((l) => `<div class="sv-dash-cal-weekday">${l}</div>`).join('')}
+          ${calendarCellsHtml}
+        </div>
+        <div class="sv-dash-cal-legend">
+          <span><span class="sv-dash-cal-dot sv-dash-cal-dot-done"></span>Done</span>
+          <span><span class="sv-dash-cal-dot sv-dash-cal-dot-today"></span>Today</span>
+          <span><span class="sv-dash-cal-dot sv-dash-cal-dot-upcoming"></span>Upcoming</span>
+        </div>
+      </div>
+    `;
+
     banner.innerHTML = `
       <div class="sv-dash-stats">
         <div class="sv-dash-stat">
@@ -843,6 +911,7 @@
         <a class="sv-dash-curriculum-btn" href="${FEED_DASHBOARD_COURSE_URL}" aria-label="View curriculum">${svIconMap}</a>
       </div>
       ${lessonCard}
+      ${calendarHtml}
     `;
   }
 
@@ -880,6 +949,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();

@@ -22,14 +22,39 @@ describe('Feed page dashboard banner (mounts into the real portal shell, not a s
     expect(feedBox.firstElementChild.id).toBe('sv-feed-dashboard');
   });
 
-  it('does not touch or remove the native welcome box / post composer / post list', async () => {
+  it('hides but does not remove the native welcome box / post composer / post list (Home is dashboard-only)', async () => {
     const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
     mountUI();
     await waitForMicrotasks();
 
-    expect(document.querySelector('.fcom_welcome_box')).not.toBeNull();
-    expect(document.querySelector('.create_status_holder')).not.toBeNull();
-    expect(document.querySelector('.all_feeds_holder')).not.toBeNull();
+    const welcomeBox = document.querySelector('.fcom_welcome_box');
+    const composer = document.querySelector('.create_status_holder');
+    const postList = document.querySelector('.all_feeds_holder');
+
+    // Still present in the DOM - never removed, so Vue can keep managing them...
+    expect(welcomeBox).not.toBeNull();
+    expect(composer).not.toBeNull();
+    expect(postList).not.toBeNull();
+
+    // ...just hidden, since Home shouldn't show feed content at all.
+    expect(welcomeBox.style.display).toBe('none');
+    expect(composer.style.display).toBe('none');
+    expect(postList.closest('.fcom_feed_style_timeline').style.display).toBe('none');
+  });
+
+  it('keeps native content hidden across repeated mountUI() calls, even if something reappears in the DOM', async () => {
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    mountUI();
+    await waitForMicrotasks();
+
+    // Simulate Vue reactively un-hiding or re-adding native content.
+    const welcomeBox = document.querySelector('.fcom_welcome_box');
+    welcomeBox.style.display = '';
+
+    mountUI();
+    await waitForMicrotasks();
+
+    expect(welcomeBox.style.display).toBe('none');
   });
 
   it('shows a "coming soon" card since the real lessons manifest is empty', async () => {
@@ -73,6 +98,19 @@ describe('Feed page dashboard banner (mounts into the real portal shell, not a s
 
     const statValues = Array.from(document.querySelectorAll('.sv-dash-stat-value')).map((el) => el.textContent);
     expect(statValues).toEqual(['0', '0']);
+  });
+
+  it('renders a full month calendar grid', async () => {
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    mountUI();
+    await waitForMicrotasks();
+
+    const banner = document.getElementById('sv-feed-dashboard');
+    const cells = banner.querySelectorAll('.sv-dash-cal-cell:not(.sv-dash-cal-empty)');
+    const now = new Date();
+    const realDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    expect(cells.length).toBe(realDaysInMonth);
+    expect(banner.querySelectorAll('.sv-dash-cal-weekday').length).toBe(7);
   });
 
   it('is idempotent: repeated mountUI() calls (as scheduleMountUI triggers on feed mutations) do not duplicate the banner', async () => {
