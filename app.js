@@ -274,33 +274,46 @@
   }
 
   async function celebrateLessonCompletion(lessonId) {
+    console.log('[SV celebrate] celebrateLessonCompletion() running for lesson', lessonId);
     const user = getUserInfo();
+    console.log('[SV celebrate] user:', user);
 
     const { error: upsertErr } = await supabase
       .from('lesson_completions')
       .upsert([{ user_name: user.name, lesson_id: lessonId }], { onConflict: 'user_name,lesson_id' });
 
     if (upsertErr) {
-      console.error('Could not record completion:', upsertErr.message);
+      console.error('[SV celebrate] upsert into lesson_completions failed:', upsertErr.message, upsertErr);
       return;
     }
+    console.log('[SV celebrate] upsert into lesson_completions succeeded');
 
-    const { data: completions } = await supabase
+    const { data: completions, error: selectErr } = await supabase
       .from('lesson_completions')
       .select('completed_at')
       .eq('user_name', user.name);
 
+    if (selectErr) {
+      console.error('[SV celebrate] could not read back completions for streak calc:', selectErr.message, selectErr);
+    }
+
     const streak = calculateStreak((completions || []).map((c) => c.completed_at));
     const progress = getCourseProgress();
     const lessonNumber = getLessonNumber();
+    console.log('[SV celebrate] streak:', streak, 'progress:', progress, 'lessonNumber:', lessonNumber);
 
-    const { data: existingMissions } = await supabase
+    const { data: existingMissions, error: missionsErr } = await supabase
       .from('lesson_missions')
       .select('id')
       .eq('lesson_id', lessonId)
       .eq('user_name', user.name);
 
+    if (missionsErr) {
+      console.error('[SV celebrate] could not check for existing mission:', missionsErr.message, missionsErr);
+    }
+
     const hasSubmittedMission = existingMissions && existingMissions.length > 0;
+    console.log('[SV celebrate] hasSubmittedMission:', hasSubmittedMission, '- showing modal now');
 
     showCelebrationModal({ lessonNumber, streak, progress, hasSubmittedMission });
   }
@@ -482,6 +495,7 @@
           nativeComplete.click();
 
           const targetLessonId = getLessonId();
+          console.log('[SV celebrate] poll started for lesson', targetLessonId);
           let attempts = 0;
           const poll = setInterval(() => {
             attempts++;
@@ -489,9 +503,11 @@
             const nowCompleted = btn && btn.textContent.trim().toLowerCase() === 'completed';
             if (nowCompleted) {
               clearInterval(poll);
+              console.log('[SV celebrate] native completion detected after', attempts * 200, 'ms - calling celebrateLessonCompletion');
               celebrateLessonCompletion(targetLessonId);
-            } else if (attempts > 20) {
+            } else if (attempts > 75) {
               clearInterval(poll);
+              console.warn('[SV celebrate] gave up waiting for native completion after', attempts * 200, 'ms - celebration modal will not show for this click');
             }
           }, 200);
         });
