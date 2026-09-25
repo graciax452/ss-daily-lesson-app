@@ -50,6 +50,31 @@ describe('Feed page dashboard banner (mounts into the real portal shell, not a s
     expect(statValues).toEqual(['0', '0']);
   });
 
+  it('regression: does not count completions from other courses (FEED_DASHBOARD_LESSONS is empty today, so nothing should count)', async () => {
+    // Reproduces the real bug found live: lesson_completions held rows from
+    // "YouTube Lessons in Order" testing earlier this session, which leaked
+    // into the "Daily Shona Lessons" dashboard's completed count (showed 4
+    // instead of 0).
+    const { mountUI } = loadApp({
+      fixture: 'feed-page',
+      bodyAttrs: { 'data-route': 'all_feeds' },
+      supabaseOverrides: {
+        selectResult: {
+          data: [
+            { lesson_id: '75', completed_at: new Date().toISOString() },
+            { lesson_id: '76', completed_at: new Date().toISOString() },
+          ],
+          error: null,
+        },
+      },
+    });
+    mountUI();
+    await waitForMicrotasks();
+
+    const statValues = Array.from(document.querySelectorAll('.sv-dash-stat-value')).map((el) => el.textContent);
+    expect(statValues).toEqual(['0', '0']);
+  });
+
   it('is idempotent: repeated mountUI() calls (as scheduleMountUI triggers on feed mutations) do not duplicate the banner', async () => {
     const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
     mountUI();
@@ -94,5 +119,37 @@ describe('getTotalCompletedCount() / getCurrentLesson() (feed dashboard helpers)
   it('FEED_DASHBOARD_LESSONS starts empty (Daily Shona Lessons has no published lessons yet)', () => {
     const { FEED_DASHBOARD_LESSONS } = loadApp();
     expect(FEED_DASHBOARD_LESSONS).toEqual([]);
+  });
+});
+
+describe('filterCompletionsForCourse()', () => {
+  const courseLessons = [
+    { id: '75', title: 'Lesson 1', url: 'https://example.com/75' },
+    { id: '76', title: 'Lesson 2', url: 'https://example.com/76' },
+  ];
+
+  it('keeps only rows whose lesson_id belongs to this course', () => {
+    const { filterCompletionsForCourse } = loadApp();
+    const rows = [
+      { lesson_id: '75', completed_at: '2026-01-01' },
+      { lesson_id: '999', completed_at: '2026-01-02' }, // a different course's lesson
+      { lesson_id: '76', completed_at: '2026-01-03' },
+    ];
+    expect(filterCompletionsForCourse(rows, courseLessons)).toEqual([
+      { lesson_id: '75', completed_at: '2026-01-01' },
+      { lesson_id: '76', completed_at: '2026-01-03' },
+    ]);
+  });
+
+  it('returns an empty array when the course has no lessons in its manifest', () => {
+    const { filterCompletionsForCourse } = loadApp();
+    const rows = [{ lesson_id: '75', completed_at: '2026-01-01' }];
+    expect(filterCompletionsForCourse(rows, [])).toEqual([]);
+  });
+
+  it('matches ids regardless of string/number type mismatch', () => {
+    const { filterCompletionsForCourse } = loadApp();
+    const rows = [{ lesson_id: 75, completed_at: '2026-01-01' }];
+    expect(filterCompletionsForCourse(rows, courseLessons)).toEqual(rows);
   });
 });

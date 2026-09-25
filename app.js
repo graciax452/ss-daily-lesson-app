@@ -748,6 +748,15 @@
     return lessons.find((l) => !completedSet.has(String(l.id))) || null;
   }
 
+  // lesson_completions holds rows from every course a user has ever
+  // completed a lesson in, not just one - narrows to only the rows whose
+  // lesson_id belongs to this course's manifest, so stats for one course's
+  // dashboard can't be inflated by completions from a different course.
+  function filterCompletionsForCourse(rows, courseLessons) {
+    const courseLessonIds = new Set(courseLessons.map((l) => String(l.id)));
+    return rows.filter((r) => courseLessonIds.has(String(r.lesson_id)));
+  }
+
   // Inserts a stats/current-lesson banner at the top of the real Feed page's
   // post list, inside FluentCommunity's own portal shell. Only creates the
   // banner element once (idempotent, same create-if-missing pattern as
@@ -782,8 +791,9 @@
     }
 
     const rows = completions || [];
-    const completedIds = rows.map((r) => r.lesson_id);
-    const completedDates = rows.map((r) => r.completed_at);
+    const courseRows = filterCompletionsForCourse(rows, FEED_DASHBOARD_LESSONS);
+    const completedIds = courseRows.map((r) => r.lesson_id);
+    const completedDates = courseRows.map((r) => r.completed_at);
 
     const streak = calculateStreak(completedDates);
     const completedCount = getTotalCompletedCount(completedIds);
@@ -870,6 +880,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getTotalCompletedCount, getCurrentLesson, FEED_DASHBOARD_LESSONS };
+    module.exports = { getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();
