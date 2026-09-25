@@ -75,4 +75,36 @@ describe('celebration modal trigger (fires on click after a fixed settle delay)'
 
     expect(wrap.classList.contains('is-active')).toBe(true);
   });
+
+  it('hides the "not done yet" mission section when a mission was already submitted for this lesson', async () => {
+    const { mountUI } = loadApp({
+      fixture: 'full-lesson-page',
+      supabaseOverrides: {
+        selectResultByTable: {
+          lesson_missions: { data: [{ id: 'existing-mission-id' }], error: null },
+        },
+      },
+    });
+    mountUI();
+
+    document.getElementById('sv-trigger-complete-btn').click();
+    await vi.advanceTimersByTimeAsync(1500);
+    await waitForMicrotasks();
+
+    const wrap = document.getElementById('sv-celebration-modal-wrap');
+    expect(wrap).not.toBeNull();
+    expect(wrap.querySelector('#sv-celebration-submit-mission')).toBeNull();
+  });
+
+  it('shows the "not done yet" mission section when no mission has been submitted for this lesson', async () => {
+    const { mountUI } = loadApp({ fixture: 'full-lesson-page' }); // default mock: no missions
+    mountUI();
+
+    document.getElementById('sv-trigger-complete-btn').click();
+    await vi.advanceTimersByTimeAsync(1500);
+    await waitForMicrotasks();
+
+    const wrap = document.getElementById('sv-celebration-modal-wrap');
+    expect(wrap.querySelector('#sv-celebration-submit-mission')).not.toBeNull();
+  });
 });
