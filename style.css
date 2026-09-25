@@ -27,8 +27,8 @@
 
   /* Lighter tints for accent fills that shouldn't be as heavy as a button
      (e.g. the celebration modal's progress ring/calendar/week bar) */
-  --sv-orange-light: #E39A5C;
-  --sv-track-light: #E8E6E1;
+  --sv-orange-light: #F0883D;
+  --sv-track-light: #F0EEEA;
 }
 
 /* ==========================================

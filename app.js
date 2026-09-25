@@ -409,7 +409,7 @@
         <div style="display:flex; justify-content:center; gap:10px; margin-bottom:12px;">
           ${calendarHtml}
         </div>
-        <p style="text-align:center; margin:0 0 20px; color:var(--sv-text-muted); font-size:0.9rem;">${streak} days in a row, toonana mangwana.</p>
+        <p style="text-align:center; margin:0 0 20px; color:var(--sv-text-muted); font-size:0.9rem;">${streak} day${streak === 1 ? '' : 's'} in a row, toonana mangwana.</p>
 
         <div style="height:1px; background:var(--sv-border); margin:0 0 20px;"></div>
 
@@ -424,7 +424,7 @@
             </div>
           </div>
           ${lessonsCountLabel}
-          <p style="margin:0 0 16px; color:var(--sv-text-muted); font-size:0.85rem;">Every lesson is one more conversation you can have.</p>
+          <p style="margin:0 0 16px; color:var(--sv-text-muted); font-size:0.85rem;">One step closer to speaking Shona with confidence.</p>
           ${currentWeek !== null ? `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <span style="font-size:0.8rem; font-weight:700; color:var(--sv-ink);">Week ${currentWeek}</span>
@@ -437,14 +437,14 @@
         ${!hasSubmittedMission ? `
           <div style="height:1px; background:var(--sv-border); margin:0 0 20px;"></div>
           <div style="text-align:left; margin-bottom:10px;">
-            <div style="font-size:0.72rem; font-weight:700; color:var(--sv-orange); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:2px;">Today's Mission</div>
-            <div style="font-size:1.05rem; font-weight:800; color:var(--sv-ink);">One more step for today</div>
+            <div style="font-size:0.72rem; font-weight:700; color:var(--sv-orange); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:2px;">Basa raNhasi</div>
+            <div style="font-size:1.05rem; font-weight:800; color:var(--sv-ink);">Show what you've learned</div>
           </div>
           <button type="button" id="sv-celebration-submit-mission" style="width:100%; background:none; border:1.5px dashed var(--sv-border); border-radius:16px; padding:22px 16px; cursor:pointer; text-align:center; margin-bottom:16px;">
             <div style="width:44px; height:44px; border-radius:50%; background:var(--sv-cream); color:var(--sv-orange); display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">${svIconCamera}</div>
-            <div style="font-weight:700; color:var(--sv-ink); font-size:0.92rem; margin-bottom:2px;">Share Your Mission</div>
-            <div style="color:var(--sv-text-muted); font-size:0.8rem; margin-bottom:8px;">It goes on your Shona journey.</div>
-            <div style="color:var(--sv-orange); font-weight:700; font-size:0.86rem;">Upload now ›</div>
+            <div style="font-weight:700; color:var(--sv-ink); font-size:0.92rem; margin-bottom:2px;">Share Your Work</div>
+            <div style="color:var(--sv-text-muted); font-size:0.8rem; margin-bottom:8px;">A photo of your notes, a voice clip, anything from today.</div>
+            <div style="color:var(--sv-orange); font-weight:700; font-size:0.86rem;">Add it now ›</div>
           </button>
         ` : ''}
 
