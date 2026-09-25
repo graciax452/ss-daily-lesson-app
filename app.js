@@ -443,7 +443,7 @@
           <button type="button" id="sv-celebration-submit-mission" style="width:100%; background:none; border:1.5px dashed var(--sv-border); border-radius:16px; padding:22px 16px; cursor:pointer; text-align:center; margin-bottom:16px;">
             <div style="width:44px; height:44px; border-radius:50%; background:var(--sv-cream); color:var(--sv-orange); display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">${svIconCamera}</div>
             <div style="font-weight:700; color:var(--sv-ink); font-size:0.92rem; margin-bottom:2px;">Add Your Basa raNhasi</div>
-            <div style="color:var(--sv-text-muted); font-size:0.8rem; margin-bottom:8px;">A photo of your notes, a voice clip, anything from today.</div>
+            <div style="color:var(--sv-text-muted); font-size:0.8rem; margin-bottom:8px;">A photo of your notes or a recording of your practice from today.</div>
             <div style="color:var(--sv-orange); font-weight:700; font-size:0.86rem;">Do it now ›</div>
           </button>
         ` : ''}
