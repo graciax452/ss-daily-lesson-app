@@ -376,6 +376,15 @@
     });
   }
 
+  // Tracks the last-seen isCompleted state per lesson, so the celebration
+  // modal fires exactly once per genuine false->true transition observed in
+  // this session - never on page load of an already-completed lesson (first
+  // observation is undefined, not false, so it's skipped), and never twice
+  // for the same completion. Ties the trigger directly to the same detection
+  // mountUI() already reliably performs, instead of a separately time-boxed
+  // poll that could time out before the native state actually updated.
+  const lessonCompletionSeen = new Map();
+
   function mountUI() {
     if (document.body.getAttribute('data-route') !== 'view_lesson') return;
 
@@ -426,6 +435,13 @@
       let isCompleted = false;
       if (nativeComplete && nativeComplete.textContent.trim().toLowerCase() === 'completed') {
           isCompleted = true;
+      }
+
+      const currentLessonIdForCelebration = getLessonId();
+      const previouslySeenCompleted = lessonCompletionSeen.get(currentLessonIdForCelebration);
+      lessonCompletionSeen.set(currentLessonIdForCelebration, isCompleted);
+      if (isCompleted && previouslySeenCompleted === false) {
+        celebrateLessonCompletion(currentLessonIdForCelebration);
       }
 
       const svIconCircle = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"></circle></svg>`;
@@ -491,25 +507,7 @@
         });
 
         document.getElementById('sv-trigger-complete-btn')?.addEventListener('click', () => {
-          if (!nativeComplete) return;
-          nativeComplete.click();
-
-          const targetLessonId = getLessonId();
-          console.log('[SV celebrate] poll started for lesson', targetLessonId);
-          let attempts = 0;
-          const poll = setInterval(() => {
-            attempts++;
-            const btn = document.querySelector('.fcom_back_space .fcom_lesson_nav .el-button--info');
-            const nowCompleted = btn && btn.textContent.trim().toLowerCase() === 'completed';
-            if (nowCompleted) {
-              clearInterval(poll);
-              console.log('[SV celebrate] native completion detected after', attempts * 200, 'ms - calling celebrateLessonCompletion');
-              celebrateLessonCompletion(targetLessonId);
-            } else if (attempts > 75) {
-              clearInterval(poll);
-              console.warn('[SV celebrate] gave up waiting for native completion after', attempts * 200, 'ms - celebration modal will not show for this click');
-            }
-          }, 200);
+          if (nativeComplete) nativeComplete.click();
         });
 
         document.getElementById('sv-trigger-next-btn')?.addEventListener('click', () => {

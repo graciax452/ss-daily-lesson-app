@@ -16,10 +16,15 @@ const require = createRequire(import.meta.url);
 // loadMissionsFeed()'s query chain to resolve to an empty result by default.
 function createSupabaseMock(overrides = {}) {
   const selectResult = overrides.selectResult || { data: [], error: null };
+  // Real Supabase query builders are thenable at every step, not just after a
+  // final .order()/.single() - awaiting the chain at any point (e.g. right
+  // after the last .eq()) must resolve, or a test can silently destructure
+  // {data, error} off the builder object itself instead of the real result.
   const selectChain = {
     select: () => selectChain,
     eq: () => selectChain,
     order: () => Promise.resolve(selectResult),
+    then: (resolve, reject) => Promise.resolve(selectResult).then(resolve, reject),
   };
 
   return {
