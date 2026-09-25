@@ -471,8 +471,15 @@
   }
 
   function mountUI() {
-    if (document.body.getAttribute('data-route') !== 'view_lesson') return;
+    const route = document.body.getAttribute('data-route');
+    if (route === 'view_lesson') {
+      mountLessonUI();
+    } else if (route === 'all_feeds') {
+      mountFeedDashboard();
+    }
+  }
 
+  function mountLessonUI() {
     const lessonBody = document.querySelector('.fcom_lesson_details .fcom_lesson_content');
     const commentsWrap = document.querySelector('.fcom_lesson_comments');
     const lessonId = getLessonId();
@@ -718,6 +725,117 @@
     }
   }
 
+  // Manual lessons manifest for the Feed dashboard banner - FluentCommunity's
+  // lesson list only exists in the DOM on lesson-related pages, not on the
+  // Feed page, and there's no confirmed lessons API to pull this from
+  // instead. Keep this in sync by hand for now; revisit with a live API
+  // investigation if the course grows large enough that this becomes a
+  // chore. Starts empty since "Daily Shona Lessons" is still a draft with 0
+  // published lessons as of this writing.
+  const FEED_DASHBOARD_LESSONS = [];
+  const FEED_DASHBOARD_COURSE_URL = 'https://speakshona.com/shonaverse/course/shona-lessons/lessons';
+
+  // Distinct lessons completed, deduped by id so a stray duplicate
+  // lesson_completions row can't inflate the count.
+  function getTotalCompletedCount(completedLessonIds) {
+    return new Set(completedLessonIds.map(String)).size;
+  }
+
+  // First manifest entry the learner hasn't completed yet, in manifest order.
+  // Returns null once every listed lesson is done.
+  function getCurrentLesson(lessons, completedLessonIds) {
+    const completedSet = new Set(completedLessonIds.map(String));
+    return lessons.find((l) => !completedSet.has(String(l.id))) || null;
+  }
+
+  // Inserts a stats/current-lesson banner at the top of the real Feed page's
+  // post list, inside FluentCommunity's own portal shell. Only creates the
+  // banner element once (idempotent, same create-if-missing pattern as
+  // #shonaverse-lesson-actions above) - scheduleMountUI() re-runs mountUI()
+  // on many DOM mutations, and repeatedly re-querying Supabase for a banner
+  // that's already showing correct data would be wasteful.
+  function mountFeedDashboard() {
+    const feedBox = document.querySelector('.fcom_feed_box');
+    if (!feedBox) return;
+
+    if (document.getElementById('sv-feed-dashboard')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'sv-feed-dashboard';
+    feedBox.insertBefore(banner, feedBox.firstChild);
+
+    renderFeedDashboardContent(banner);
+  }
+
+  async function renderFeedDashboardContent(banner) {
+    banner.innerHTML = '<div style="text-align:center; padding:20px 0; color:var(--sv-text-muted);">Loading your progress...</div>';
+
+    const user = getUserInfo();
+    const { data: completions, error } = await supabase
+      .from('lesson_completions')
+      .select('lesson_id, completed_at')
+      .eq('user_name', user.name);
+
+    if (error) {
+      banner.innerHTML = `<div style="text-align:center; padding:20px 0; color:var(--sv-red);">Could not load your progress: ${error.message}</div>`;
+      return;
+    }
+
+    const rows = completions || [];
+    const completedIds = rows.map((r) => r.lesson_id);
+    const completedDates = rows.map((r) => r.completed_at);
+
+    const streak = calculateStreak(completedDates);
+    const completedCount = getTotalCompletedCount(completedIds);
+    const currentLesson = getCurrentLesson(FEED_DASHBOARD_LESSONS, completedIds);
+
+    const svIconCheck = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
+    const svIconFlame = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2c1 3-3 4-3 8a3 3 0 0 0 6 0c1 1 2 2.5 2 4.5A5.5 5.5 0 0 1 6 14c0-5 4-6 6-12z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg>`;
+    const svIconMap = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 3 3 5v16l6-2 6 2 6-2V3l-6 2-6-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 3v16M15 5v16" stroke="currentColor" stroke-width="1.8"></path></svg>`;
+
+    let lessonCard;
+    if (FEED_DASHBOARD_LESSONS.length === 0) {
+      lessonCard = `
+        <div class="sv-dash-lesson-card">
+          <div class="sv-dash-lesson-eyebrow">Coming soon</div>
+          <div class="sv-dash-lesson-title">New daily lessons are on their way</div>
+          <a class="sv-dash-lesson-btn" href="${FEED_DASHBOARD_COURSE_URL}">View course</a>
+        </div>
+      `;
+    } else if (currentLesson) {
+      lessonCard = `
+        <div class="sv-dash-lesson-card">
+          <div class="sv-dash-lesson-eyebrow">Continue learning</div>
+          <div class="sv-dash-lesson-title">${currentLesson.title}</div>
+          <a class="sv-dash-lesson-btn" href="${currentLesson.url}">Start lesson</a>
+        </div>
+      `;
+    } else {
+      lessonCard = `
+        <div class="sv-dash-lesson-card">
+          <div class="sv-dash-lesson-eyebrow">All caught up</div>
+          <div class="sv-dash-lesson-title">You've completed every lesson so far</div>
+          <a class="sv-dash-lesson-btn" href="${FEED_DASHBOARD_COURSE_URL}">Browse courses</a>
+        </div>
+      `;
+    }
+
+    banner.innerHTML = `
+      <div class="sv-dash-stats">
+        <div class="sv-dash-stat">
+          <span class="sv-dash-stat-icon sv-dash-stat-icon-check">${svIconCheck}</span>
+          <span class="sv-dash-stat-value">${completedCount}</span>
+        </div>
+        <div class="sv-dash-stat">
+          <span class="sv-dash-stat-icon sv-dash-stat-icon-flame">${svIconFlame}</span>
+          <span class="sv-dash-stat-value">${streak}</span>
+        </div>
+        <a class="sv-dash-curriculum-btn" href="${FEED_DASHBOARD_COURSE_URL}" aria-label="View curriculum">${svIconMap}</a>
+      </div>
+      ${lessonCard}
+    `;
+  }
+
   // Debounce mountUI(): a single lesson navigation can fire many DOM mutations
   // in quick succession (FluentCommunity tearing down/rebuilding content), and
   // without this, each one would trigger a full, unconditional re-render.
@@ -752,6 +870,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap };
+    module.exports = { getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getTotalCompletedCount, getCurrentLesson, FEED_DASHBOARD_LESSONS };
   }
 })();
