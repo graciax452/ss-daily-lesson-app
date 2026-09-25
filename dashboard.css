@@ -1,0 +1,104 @@
+/* Standalone stylesheet for the Home dashboard page - self-contained (same
+   tokens as style.css's :root, duplicated rather than shared, since this
+   loads on a separate WordPress page where style.css isn't present and the
+   project has no build step to share values between files). */
+:root {
+  --sv-ink: #000000;
+  --sv-cream: #EEEEE5;
+  --sv-cream-mute: #C8C8C0;
+  --sv-orange: #B95600;
+  --sv-orange-light: #F0883D;
+  --sv-track-light: #F0EEEA;
+  --sv-red: #EB5555;
+  --sv-border: #C8C8C0;
+  --sv-text-main: #000000;
+  --sv-text-muted: #78716C;
+}
+
+#sv-dashboard-root {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+  font-family: inherit;
+}
+
+.sv-dash-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.sv-dash-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--sv-cream);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--sv-text-main);
+}
+
+.sv-dash-stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sv-dash-stat-icon-check {
+  color: var(--sv-orange);
+}
+
+.sv-dash-stat-icon-flame {
+  color: var(--sv-orange-light);
+}
+
+.sv-dash-curriculum-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--sv-cream);
+  color: var(--sv-text-main);
+  text-decoration: none;
+}
+
+.sv-dash-lesson-card {
+  background: #ffffff;
+  border: 1.5px solid var(--sv-border);
+  border-radius: 20px;
+  padding: 22px;
+  text-align: center;
+}
+
+.sv-dash-lesson-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--sv-orange);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.sv-dash-lesson-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--sv-text-main);
+  margin-bottom: 16px;
+}
+
+.sv-dash-lesson-btn {
+  display: inline-block;
+  background: var(--sv-orange);
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 12px 28px;
+  border-radius: 999px;
+}

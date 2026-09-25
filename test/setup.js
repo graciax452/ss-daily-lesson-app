@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const APP_JS_PATH = path.join(__dirname, '..', 'app.js');
+const DASHBOARD_JS_PATH = path.join(__dirname, '..', 'dashboard.js');
 
 // app.js itself stays a plain CommonJS-style script (module.exports inside an
 // IIFE) since it's deployed as-is via <script src>, unchanged - createRequire
@@ -80,4 +81,16 @@ function loadApp({ fixture, bodyAttrs = { 'data-route': 'view_lesson' }, supabas
   return require(APP_JS_PATH);
 }
 
-export { loadApp, readFixture, createSupabaseMock };
+// Same idea as loadApp(), but for the standalone dashboard page: a plain
+// #sv-dashboard-root div instead of a lesson-page fixture, since dashboard.js
+// doesn't touch any FluentCommunity DOM at all.
+function loadDashboard({ supabaseOverrides } = {}) {
+  document.body.innerHTML = '<div id="sv-dashboard-root"></div>';
+
+  window.supabase = { createClient: () => createSupabaseMock(supabaseOverrides) };
+
+  delete require.cache[require.resolve(DASHBOARD_JS_PATH)];
+  return require(DASHBOARD_JS_PATH);
+}
+
+export { loadApp, loadDashboard, readFixture, createSupabaseMock };

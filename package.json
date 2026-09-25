@@ -4,11 +4,11 @@
   "type": "commonjs",
   "description": "Custom JS/CSS for the Speak Shona FluentCommunity lesson pages, deployed raw via jsDelivr (no build step). This package.json exists only for the test toolchain.",
   "scripts": {
-    "pretest": "node --check app.js && node scripts/check-self-closing-svg.js",
+    "pretest": "node --check app.js && node --check dashboard.js && node scripts/check-self-closing-svg.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint:svg": "node scripts/check-self-closing-svg.js",
-    "lint:syntax": "node --check app.js",
+    "lint:syntax": "node --check app.js && node --check dashboard.js",
     "prepare": "husky"
   },
   "devDependencies": {

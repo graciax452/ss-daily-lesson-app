@@ -18,7 +18,7 @@ if [ -z "$SHA" ]; then
   exit 1
 fi
 
-FILES=("app.js" "style.css")
+FILES=("app.js" "style.css" "dashboard.js" "dashboard.css")
 FAILED=0
 
 for FILE in "${FILES[@]}"; do
