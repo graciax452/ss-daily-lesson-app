@@ -259,6 +259,34 @@
     return val !== null ? parseInt(val, 10) : null;
   }
 
+  // Total lessons in the course, counted from the Lessons sidebar drawer
+  // (present in the DOM regardless of whether the drawer is open). Each
+  // .fcom_section_item is one lesson; .fcom_section_primary_item is a
+  // section header, not a lesson, so it's excluded automatically since it
+  // doesn't carry that class.
+  function getTotalLessonCount() {
+    const count = document.querySelectorAll('.fcom_section_items .fcom_section_item').length;
+    return count > 0 ? count : null;
+  }
+
+  // Which of the 7 days in the Monday-Sunday week containing referenceDate
+  // had at least one completion. Returns [Mon, Tue, Wed, Thu, Fri, Sat, Sun].
+  function getWeekCompletionMap(completedAtList, referenceDate = new Date()) {
+    const daySet = new Set(completedAtList.map((d) => new Date(d).toISOString().slice(0, 10)));
+    const ref = new Date(referenceDate);
+    const daysSinceMonday = (ref.getDay() + 6) % 7;
+    const monday = new Date(ref);
+    monday.setDate(monday.getDate() - daysSinceMonday);
+
+    const week = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(d.getDate() + i);
+      week.push(daySet.has(d.toISOString().slice(0, 10)));
+    }
+    return week;
+  }
+
   // Count consecutive calendar days, ending at referenceDate, with at least
   // one completion. referenceDate defaults to now in production; tests pass
   // a fixed date so results are deterministic.
@@ -297,10 +325,13 @@
       console.error('[SV celebrate] could not read back completions for streak calc:', selectErr.message, selectErr);
     }
 
-    const streak = calculateStreak((completions || []).map((c) => c.completed_at));
+    const completedDates = (completions || []).map((c) => c.completed_at);
+    const streak = calculateStreak(completedDates);
+    const weekMap = getWeekCompletionMap(completedDates);
     const progress = getCourseProgress();
     const lessonNumber = getLessonNumber();
-    console.log('[SV celebrate] streak:', streak, 'progress:', progress, 'lessonNumber:', lessonNumber);
+    const totalLessons = getTotalLessonCount();
+    console.log('[SV celebrate] streak:', streak, 'progress:', progress, 'lessonNumber:', lessonNumber, 'totalLessons:', totalLessons);
 
     const { data: existingMissions, error: missionsErr } = await supabase
       .from('lesson_missions')
@@ -315,10 +346,10 @@
     const hasSubmittedMission = existingMissions && existingMissions.length > 0;
     console.log('[SV celebrate] hasSubmittedMission:', hasSubmittedMission, '- showing modal now');
 
-    showCelebrationModal({ lessonNumber, streak, progress, hasSubmittedMission });
+    showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, hasSubmittedMission });
   }
 
-  function showCelebrationModal({ lessonNumber, streak, progress, hasSubmittedMission }) {
+  function showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, hasSubmittedMission }) {
     let wrap = document.getElementById('sv-celebration-modal-wrap');
     if (!wrap) {
       wrap = document.createElement('div');
@@ -328,33 +359,99 @@
       wrap.onclick = (e) => { if (e.target === wrap) wrap.classList.remove('is-active'); };
     }
 
-    const dayLabel = lessonNumber ? `Lesson ${lessonNumber} Complete!` : 'Lesson Complete!';
+    const svIconCheckSmall = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
+    const svIconCamera = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 8a2 2 0 0 1 2-2h1.5l1-1.5h7l1 1.5H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="12" cy="13" r="3.5" stroke="currentColor" stroke-width="1.6"></circle></svg>`;
+
+    const dayLabel = lessonNumber ? `Day ${lessonNumber} Complete!` : 'Lesson Complete!';
+
+    const dayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const todayIndex = (new Date().getDay() + 6) % 7;
+    const calendarHtml = dayLetters.map((letter, i) => {
+      const done = weekMap && weekMap[i];
+      const isToday = i === todayIndex;
+      const circleBg = done ? 'var(--sv-lime)' : 'var(--sv-cream-mute)';
+      const circleColor = done ? 'var(--sv-ink)' : 'var(--sv-text-muted)';
+      const ring = isToday ? 'box-shadow:0 0 0 2px var(--sv-orange);' : '';
+      return `
+        <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+          <div style="width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:${circleBg}; color:${circleColor}; ${ring}">
+            ${done ? svIconCheckSmall : ''}
+          </div>
+          <div style="font-size:0.7rem; color:var(--sv-text-muted); font-weight:600;">${letter}</div>
+        </div>
+      `;
+    }).join('');
+
+    const progressForRing = progress !== null ? progress : 0;
+    const ringRadius = 54;
+    const ringCircumference = 2 * Math.PI * ringRadius;
+    const ringDashOffset = ringCircumference * (1 - progressForRing / 100);
     const progressLabel = progress !== null ? `${progress}%` : '—';
+
+    const lessonsCompleted = (totalLessons !== null && progress !== null) ? Math.round((progress / 100) * totalLessons) : null;
+    const lessonsCountLabel = (lessonsCompleted !== null && totalLessons !== null)
+      ? `<p style="margin:0 0 2px; font-size:0.85rem; color:var(--sv-text-muted);">${lessonsCompleted} of ${totalLessons} lessons</p>`
+      : '';
+
+    const currentWeek = lessonNumber ? Math.ceil(lessonNumber / 7) : null;
+    const dayInWeek = lessonNumber ? ((lessonNumber - 1) % 7) + 1 : null;
+    const weekSegments = Array.from({ length: 7 }, (_, i) => {
+      const filled = dayInWeek !== null && i < dayInWeek;
+      return `<div style="flex:1; height:6px; border-radius:3px; background:${filled ? 'var(--sv-lime)' : 'var(--sv-cream-mute)'};"></div>`;
+    }).join('');
 
     wrap.innerHTML = `
       <div class="sv-modal-card sv-celebration-card">
         <button type="button" id="sv-celebration-close" style="position:absolute; top:16px; right:16px; background:none; border:none; font-size:1.5rem; line-height:1; color:#94A3B8; cursor:pointer;">&times;</button>
-        <div style="text-align:center;">
+
+        <div style="text-align:center; margin-bottom:16px;">
           <div style="font-size:2.5rem; margin-bottom:8px;">🎉</div>
-          <h2 style="margin:0 0 4px; font-size:1.4rem; font-weight:800; color:var(--sv-ink);">${dayLabel}</h2>
-          <p style="margin:0 0 20px; color:var(--sv-text-muted); font-size:0.95rem;">You did it! Keep the momentum going.</p>
+          <h2 style="margin:0; font-size:1.4rem; font-weight:800; color:var(--sv-ink);">${dayLabel}</h2>
         </div>
-        <div style="display:flex; gap:12px; margin-bottom:20px;">
-          <div style="flex:1; background:var(--sv-cream); border-radius:14px; padding:16px; text-align:center;">
-            <div style="font-size:1.6rem; font-weight:800; color:var(--sv-orange);">🔥 ${streak}</div>
-            <div style="font-size:0.8rem; color:var(--sv-text-muted); margin-top:4px;">Day Streak</div>
-          </div>
-          <div style="flex:1; background:var(--sv-cream); border-radius:14px; padding:16px; text-align:center;">
-            <div style="font-size:1.6rem; font-weight:800; color:var(--sv-lime);">📊 ${progressLabel}</div>
-            <div style="font-size:0.8rem; color:var(--sv-text-muted); margin-top:4px;">Course Progress</div>
-          </div>
+
+        <div style="display:flex; justify-content:center; gap:10px; margin-bottom:12px;">
+          ${calendarHtml}
         </div>
+        <p style="text-align:center; margin:0 0 20px; color:var(--sv-text-muted); font-size:0.9rem;">${streak} days in a row, toonana mangwana.</p>
+
+        <div style="height:1px; background:var(--sv-border); margin:0 0 20px;"></div>
+
+        <div style="text-align:center; margin-bottom:20px;">
+          <div style="position:relative; width:140px; height:140px; margin:0 auto 12px;">
+            <svg width="140" height="140" viewBox="0 0 140 140" style="transform:rotate(-90deg);">
+              <circle cx="70" cy="70" r="${ringRadius}" fill="none" stroke="var(--sv-cream-mute)" stroke-width="12"></circle>
+              <circle cx="70" cy="70" r="${ringRadius}" fill="none" stroke="var(--sv-lime)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${ringCircumference}" stroke-dashoffset="${ringDashOffset}"></circle>
+            </svg>
+            <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center;">
+              <div style="font-size:1.7rem; font-weight:800; color:var(--sv-ink);">${progressLabel}</div>
+            </div>
+          </div>
+          ${lessonsCountLabel}
+          <p style="margin:0 0 16px; color:var(--sv-text-muted); font-size:0.85rem;">Every lesson is one more conversation you can have.</p>
+          ${currentWeek !== null ? `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:0.8rem; font-weight:700; color:var(--sv-ink);">Week ${currentWeek}</span>
+              <span style="font-size:0.8rem; color:var(--sv-text-muted);">${dayInWeek} of 7</span>
+            </div>
+            <div style="display:flex; gap:4px;">${weekSegments}</div>
+          ` : ''}
+        </div>
+
         ${!hasSubmittedMission ? `
-          <button type="button" id="sv-celebration-submit-mission" style="width:100%; background:var(--sv-terracotta); color:#ffffff; border:none; padding:13px; border-radius:12px; font-weight:700; font-size:0.98rem; cursor:pointer; margin-bottom:10px;">
-            ✍️ Submit Today's Mission
+          <div style="height:1px; background:var(--sv-border); margin:0 0 20px;"></div>
+          <div style="text-align:left; margin-bottom:10px;">
+            <div style="font-size:0.72rem; font-weight:700; color:var(--sv-orange); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:2px;">Today's Mission</div>
+            <div style="font-size:1.05rem; font-weight:800; color:var(--sv-ink);">One more step for today</div>
+          </div>
+          <button type="button" id="sv-celebration-submit-mission" style="width:100%; background:none; border:1.5px dashed var(--sv-border); border-radius:16px; padding:22px 16px; cursor:pointer; text-align:center; margin-bottom:16px;">
+            <div style="width:44px; height:44px; border-radius:50%; background:var(--sv-cream); color:var(--sv-orange); display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">${svIconCamera}</div>
+            <div style="font-weight:700; color:var(--sv-ink); font-size:0.92rem; margin-bottom:2px;">Share Your Mission</div>
+            <div style="color:var(--sv-text-muted); font-size:0.8rem; margin-bottom:8px;">It goes on your Shona journey.</div>
+            <div style="color:var(--sv-orange); font-weight:700; font-size:0.86rem;">Upload now ›</div>
           </button>
         ` : ''}
-        <button type="button" id="sv-celebration-continue" style="width:100%; background:${hasSubmittedMission ? 'var(--sv-terracotta)' : 'transparent'}; color:${hasSubmittedMission ? '#ffffff' : 'var(--sv-text-muted)'}; border:${hasSubmittedMission ? 'none' : '1.5px solid var(--sv-border)'}; padding:13px; border-radius:12px; font-weight:700; font-size:0.98rem; cursor:pointer;">
+
+        <button type="button" id="sv-celebration-continue" style="width:100%; background:var(--sv-terracotta); color:#ffffff; border:none; padding:13px; border-radius:12px; font-weight:700; font-size:0.98rem; cursor:pointer;">
           Continue
         </button>
       </div>
@@ -658,6 +755,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak };
+    module.exports = { getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap };
   }
 })();

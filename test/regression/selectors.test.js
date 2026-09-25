@@ -89,4 +89,9 @@ describe('Lessons sidebar drawer targeting', () => {
     const { getCourseProgress } = loadApp({ fixture: 'lessons-sidebar' });
     expect(getCourseProgress()).toBe(50);
   });
+
+  it('getTotalLessonCount() counts the 2 real lesson items, excluding the section header', () => {
+    const { getTotalLessonCount } = loadApp({ fixture: 'lessons-sidebar' });
+    expect(getTotalLessonCount()).toBe(2);
+  });
 });
