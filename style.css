@@ -24,6 +24,11 @@
   --sv-green: var(--sv-lime);
   --sv-green-hover: var(--sv-brand-green);
   --sv-gray-done: var(--sv-cream-mute);
+
+  /* Lighter tints for accent fills that shouldn't be as heavy as a button
+     (e.g. the celebration modal's progress ring/calendar/week bar) */
+  --sv-orange-light: #E39A5C;
+  --sv-track-light: #E8E6E1;
 }
 
 /* ==========================================
