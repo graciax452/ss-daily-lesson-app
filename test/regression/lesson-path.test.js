@@ -36,6 +36,37 @@ describe('which Zuva a lesson page is', () => {
   });
 });
 
+describe('lesson header', () => {
+  it('turns "Zuva 3 — 🔊 Five Clean Vowels" into a clean title', () => {
+    const { cleanLessonTitle } = loadApp();
+    expect(cleanLessonTitle('Zuva 3 — 🔊 Five Clean Vowels')).toBe('Five Clean Vowels');
+    expect(cleanLessonTitle('Day 2')).toBe('');
+    expect(cleanLessonTitle('Zuva 2 - Hesi, Mhoro, Mhoroi')).toBe('Hesi, Mhoro, Mhoroi');
+  });
+
+  it('labels lessons by type', () => {
+    const { lessonEyebrow } = loadApp();
+    expect(lessonEyebrow({ zuva: 2, week: 1, type: 'lesson' })).toBe('Zuva 2 · Week 1');
+    expect(lessonEyebrow({ zuva: 3, week: 1, type: 'sound' })).toContain('Sounds');
+    expect(lessonEyebrow({ zuva: 7, week: 1, type: 'special' })).toContain('Special Mission');
+    expect(lessonEyebrow({ zuva: 0, week: 0, type: 'onboarding' })).toBe('Start here');
+  });
+
+  it('mounts once and hides the native title, keeping the Edit Lesson link', () => {
+    const { mountLessonHeader, _setLessonsManifest } = loadApp({ fixture: 'full-lesson-page' });
+    _setLessonsManifest(MANIFEST.map((l) => ({ ...l, chapter: l.week ? 'presence & respect' : '' })));
+    document.querySelector('.fcom_lesson_title h1').textContent = 'Zuva 2 — Hesi, Mhoro, Mhoroi';
+    mountLessonHeader();
+    mountLessonHeader();
+    expect(document.querySelectorAll('#sv-lesson-header').length).toBe(1);
+    const header = document.getElementById('sv-lesson-header');
+    expect(header.textContent).toContain('Hesi, Mhoro, Mhoroi');
+    expect(header.textContent).toContain('presence & respect');
+    expect(document.querySelector('.fcom_lesson_title').classList.contains('sv-has-header')).toBe(true);
+    expect(document.querySelector('.fcom_lesson_number a')).not.toBeNull();
+  });
+});
+
 describe('phrase bank', () => {
   it('lists recycled, today\'s new and the tip, and links the mazwi button to the Zuva deck', () => {
     const { renderPhraseBankHtml } = loadApp();

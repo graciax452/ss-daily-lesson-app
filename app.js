@@ -165,6 +165,52 @@
 
   // Inserts the phrase bank right under the lesson video (or at the top of the lesson content
   // when there's no video). Idempotent: keyed on the Zuva number, so re-mounts don't re-render.
+  // "Zuva 2 — Hesi, Mhoro, Mhoroi" → "Hesi, Mhoro, Mhoroi" (drops the Zuva/Day prefix and any
+  // leading emoji such as 🔊, since the eyebrow above the title already says those things).
+  function cleanLessonTitle(title) {
+    return String(title || '')
+      .replace(/^\s*(?:zuva|day)\s*\d+\s*[—–:·-]*\s*/i, '')
+      .replace(/^[^\p{L}\p{N}]+/u, '')
+      .trim();
+  }
+
+  function lessonEyebrow(entry) {
+    if (!entry) return '';
+    if (entry.type === 'onboarding' || entry.zuva === 0) return 'Start here';
+    const week = entry.week > 0 ? ` · Week ${entry.week}` : '';
+    if (entry.type === 'special') return `Zuva ${entry.zuva}${week} · 🌟 Special Mission`;
+    if (entry.type === 'sound') return `Zuva ${entry.zuva}${week} · 🔊 Sounds`;
+    return `Zuva ${entry.zuva}${week}`;
+  }
+
+  // Replaces FluentCommunity's "Lesson 3 of 15" + raw title with an eyebrow, the clean lesson
+  // name and the week's theme. Native elements are hidden with a class (never removed), and the
+  // Edit Lesson link stays for admins.
+  function mountLessonHeader() {
+    const titleWrap = document.querySelector('.fcom_lesson_title');
+    const h1 = titleWrap && titleWrap.querySelector('h1');
+    if (!titleWrap || !h1) return;
+    const entry = findLessonEntry(_lessonsManifest || [], { href: window.location.href, title: h1.textContent });
+    let header = document.getElementById('sv-lesson-header');
+    if (!entry) {
+      if (header) header.remove();
+      titleWrap.classList.remove('sv-has-header');
+      return;
+    }
+    const key = entry.zuva + '|' + h1.textContent.trim();
+    if (header && header.getAttribute('data-key') === key && titleWrap.contains(header)) return;
+    if (header) header.remove();
+    header = document.createElement('div');
+    header.id = 'sv-lesson-header';
+    header.className = 'sv-lesson-header';
+    header.setAttribute('data-key', key);
+    const theme = entry.chapter && entry.type !== 'onboarding' ? `<div class="sv-lh-theme">${escHtml(entry.chapter)}</div>` : '';
+    header.innerHTML = `<div class="sv-eyebrow">${escHtml(lessonEyebrow(entry))}</div>`
+      + `<h2 class="sv-lh-title">${escHtml(cleanLessonTitle(h1.textContent) || entry.title)}</h2>${theme}`;
+    titleWrap.insertBefore(header, h1);
+    titleWrap.classList.add('sv-has-header');
+  }
+
   // Zuva 0 (onboarding) is one fixed page, so its text lives here rather than in Table A.
   // Edit copy here; the FluentCommunity lesson only needs the video.
   function renderOnboardingHtml() {
@@ -805,6 +851,7 @@
       }
     }
 
+    mountLessonHeader();
     if (lessonBody) {
       mountPhraseBank(lessonBody);
       styleLessonContent(lessonBody);
@@ -1337,6 +1384,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();

@@ -692,3 +692,20 @@ body.sv-toc-open .sv-toc-backdrop {
 .sv-phrasebank .sv-pb-tip b { font-weight: 600; }
 .sv-lesson-mission .sv-mission-title { font-weight: 700; }
 .sv-mazwi-card-text strong { font-weight: 600; }
+
+/* ── Lesson header (mountLessonHeader): eyebrow + clean title + week theme ── */
+.sv-has-header > h1 { display: none !important; }
+/* hide "Lesson 3 of 15" (counts onboarding) but keep the admin Edit Lesson link */
+.sv-has-header .fcom_lesson_number { font-size: 0 !important; margin: 0 0 6px !important; }
+.sv-has-header .fcom_lesson_number a,
+.sv-has-header .fcom_lesson_number button { font-size: 12px !important; }
+.sv-lesson-header { margin-bottom: 4px; }
+.sv-lh-title {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--sv-text-main);
+  margin: 2px 0 4px !important;
+}
+.sv-lh-theme { font-size: 0.95rem; color: var(--sv-text-muted); }
