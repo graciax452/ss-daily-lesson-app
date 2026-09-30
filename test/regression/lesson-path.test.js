@@ -1,0 +1,174 @@
+import { describe, it, expect, afterEach } from 'vitest';
+import { loadApp } from '../setup.js';
+
+// Lesson pages get their phrase bank + mazwi button from mazwi.app/lessons.json; Home gets the
+// current lesson from FluentCommunity's own REST API (courses/shona-lessons/by-slug).
+
+const MANIFEST = [
+  { zuva: 0, week: 0, type: 'onboarding', title: 'Mauya! Start Here', slug: 'zuva-00', recycled: [], tip: '', new: [] },
+  { zuva: 1, week: 1, type: 'lesson', title: 'Ehe, kwete, handei!', slug: 'zuva-01', recycled: [], tip: 'Shona loves doubling up',
+    new: [{ shona: 'ehe', english: 'yes' }, { shona: 'kwete', english: 'no' }] },
+  { zuva: 2, week: 1, type: 'lesson', title: 'Hesi, mhoro, mhoroi', slug: 'zuva-02', recycled: ['ehe', 'kwete'], tip: '',
+    new: [{ shona: 'hesi', english: 'hi (peer register)' }] },
+];
+
+const tick = () => new Promise((r) => setTimeout(r, 0));
+async function settle() { for (let i = 0; i < 6; i++) await tick(); }
+
+afterEach(() => {
+  delete window.fluentComAdmin;
+  delete globalThis.fetch;
+});
+
+describe('which Zuva a lesson page is', () => {
+  it('reads the number from "Zuva N" and from the older "Day N" stub titles', () => {
+    const { zuvaFromTitle } = loadApp();
+    expect(zuvaFromTitle('Zuva 2 · Hesi, mhoro, mhoroi')).toBe(2);
+    expect(zuvaFromTitle('Day 1')).toBe(1);
+    expect(zuvaFromTitle('Day 2 (Copy)')).toBe(2);
+    expect(zuvaFromTitle('How to learn Shona')).toBeNull();
+  });
+
+  it('falls back to an exact title match', () => {
+    const { findLessonEntry } = loadApp();
+    expect(findLessonEntry(MANIFEST, { title: 'hesi, mhoro, mhoroi' }).zuva).toBe(2);
+    expect(findLessonEntry(MANIFEST, { title: 'Something else' })).toBeNull();
+  });
+});
+
+describe('phrase bank', () => {
+  it('lists recycled, today\'s new and the tip, and links the mazwi button to the Zuva deck', () => {
+    const { renderPhraseBankHtml } = loadApp();
+    const html = renderPhraseBankHtml(MANIFEST[2]);
+    expect(html).toContain('Words from previous lessons');
+    expect(html).toContain('hesi');
+    expect(html).toContain('https://mazwi.app/deck/zuva-02');
+  });
+
+  it('labels the tip Grammar or Sound pattern and allows **bold** only', () => {
+    const { renderPhraseBankHtml } = loadApp();
+    expect(renderPhraseBankHtml({ zuva: 2, type: 'lesson', tip: '**Register.** add -i', new: [] })).toContain('Grammar pattern');
+    const sound = renderPhraseBankHtml({ zuva: 3, type: 'sound', tip: 'five <b>vowels</b>', new: [] });
+    expect(sound).toContain('Sound pattern');
+    expect(sound).not.toContain('<b>');
+    expect(renderPhraseBankHtml({ zuva: 2, tip: '**Register.** x', new: [] })).toContain('<strong>Register.</strong>');
+  });
+
+  it('renders nothing for a lesson with no words or tip (onboarding)', () => {
+    const { renderPhraseBankHtml } = loadApp();
+    expect(renderPhraseBankHtml(MANIFEST[0])).toBe('');
+  });
+
+  it('escapes data from the manifest', () => {
+    const { renderPhraseBankHtml } = loadApp();
+    const html = renderPhraseBankHtml({ zuva: 9, new: [{ shona: '<img src=x onerror=alert(1)>', english: 'x' }] });
+    expect(html).not.toContain('<img');
+  });
+
+  it('mounts right under the lesson video, once, on a "Day N" page', () => {
+    const { mountPhraseBank, _setLessonsManifest } = loadApp({ fixture: 'full-lesson-page' });
+    _setLessonsManifest(MANIFEST);
+    document.querySelector('.fcom_lesson_title h1').textContent = 'Day 1';
+    const body = document.querySelector('.fcom_lesson_content');
+    const video = document.createElement('figure');
+    video.innerHTML = '<iframe src="https://www.youtube.com/embed/x"></iframe>';
+    body.insertBefore(video, body.firstChild);
+
+    mountPhraseBank(body);
+    const block = document.getElementById('sv-phrasebank');
+    expect(block).not.toBeNull();
+    expect(video.nextElementSibling).toBe(block);
+    expect(block.textContent).toContain('kwete');
+
+    mountPhraseBank(body); // re-mount (MutationObserver) must not re-render
+    expect(document.getElementById('sv-phrasebank')).toBe(block);
+    expect(document.querySelectorAll('#sv-phrasebank').length).toBe(1);
+  });
+
+  it('shows nothing on a page that is not a Zuva lesson', () => {
+    const { mountPhraseBank, _setLessonsManifest } = loadApp({ fixture: 'full-lesson-page' });
+    _setLessonsManifest(MANIFEST);
+    mountPhraseBank(document.querySelector('.fcom_lesson_content')); // title: "How to learn Shona"
+    expect(document.getElementById('sv-phrasebank')).toBeNull();
+  });
+});
+
+function mockCourse({ enrolled = true, completed = [] } = {}) {
+  window.fluentComAdmin = {
+    rest: { url: 'https://speakshona.com/wp-json/fluent-community/v2', nonce: 'n' },
+    portal_url: 'https://speakshona.com/shonaverse',
+  };
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({
+      course: { slug: 'shona-lessons' },
+      sections: [
+        { title: 'Onboarding', lessons: [{ id: 10, title: 'Mauya! Start Here', slug: 'mauya' }] },
+        { title: 'Week 1', lessons: [{ id: 11, title: 'Day 1', slug: 'day-1' }, { id: 12, title: 'Day 2', slug: 'day-2' }] },
+      ],
+      track: { completed_lessons: completed, isEnrolled: enrolled, progress: 0 },
+    }),
+  });
+}
+
+describe('Home: current lesson from FluentCommunity', () => {
+  it('shows the first lesson not yet completed, linked to its page; onboarding does not count in the ✓ total', async () => {
+    mockCourse({ completed: ['10', '11'] });
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    mountUI();
+    await settle();
+    const banner = document.getElementById('sv-feed-dashboard');
+    expect(banner.textContent).toContain('Continue learning');
+    expect(banner.textContent).toContain('Day 2');
+    expect(banner.querySelector('.sv-dash-lesson-btn').getAttribute('href'))
+      .toBe('https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-2');
+    const stats = Array.from(document.querySelectorAll('.sv-dash-stat-value')).map((el) => el.textContent);
+    expect(stats[0]).toBe('1'); // lesson 11 only — onboarding (10) is excluded
+  });
+
+  it('shows a start card instead when the member is not enrolled', async () => {
+    mockCourse({ enrolled: false });
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    mountUI();
+    await settle();
+    const banner = document.getElementById('sv-feed-dashboard');
+    expect(banner.textContent).toContain('Start the course');
+    expect(banner.textContent).not.toContain('Continue learning');
+  });
+
+  it('shows "all caught up" once every lesson is completed', async () => {
+    mockCourse({ completed: ['10', '11', '12'] });
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    mountUI();
+    await settle();
+    expect(document.getElementById('sv-feed-dashboard').textContent).toContain('All caught up');
+  });
+});
+
+describe('Home: latest missions', () => {
+  it('escapes member text, labels the lesson, and links to it', () => {
+    const { renderLatestMissionsHtml } = loadApp();
+    const html = renderLatestMissionsHtml(
+      [{ user_name: 'Rudo', lesson_id: '12', memo: '<b>hi</b>', media_url: 'javascript:alert(1)', media_type: 'image' }],
+      { 12: { id: '12', title: 'Day 2', url: 'https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-2' } },
+    );
+    expect(html).not.toContain('<b>');
+    expect(html).not.toContain('javascript:');
+    expect(html).toContain('Day 2');
+    expect(html).toContain('href="https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-2"');
+  });
+
+  it('mounts once, above Recent Activities', async () => {
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    const side = document.createElement('div');
+    side.className = 'fcom_side_box';
+    side.innerHTML = '<div class="app_side_widget widget_recent_activities"><div class="widget_header"><h3>Recent Activities</h3></div></div>';
+    document.body.appendChild(side);
+    mountUI();
+    mountUI();
+    await settle();
+    const boxes = document.querySelectorAll('#sv-latest-missions');
+    expect(boxes.length).toBe(1);
+    expect(boxes[0].nextElementSibling.classList.contains('widget_recent_activities')).toBe(true);
+  });
+});

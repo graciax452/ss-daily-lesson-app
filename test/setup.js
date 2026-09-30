@@ -35,7 +35,8 @@ function createSupabaseMock(overrides = {}) {
       const selectChain = {
         select: () => selectChain,
         eq: () => selectChain,
-        order: () => Promise.resolve(selectResult),
+        order: () => selectChain,
+        limit: () => Promise.resolve(selectResult),
         then: (resolve, reject) => Promise.resolve(selectResult).then(resolve, reject),
       };
 

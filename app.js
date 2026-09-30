@@ -35,6 +35,124 @@
     return _lessonsManifest;
   }
 
+  // Test hook: lets tests inject a manifest without a network fetch.
+  function _setLessonsManifest(m) { _lessonsManifest = m; }
+
+  // "Zuva 3 · Five clean vowels" or the older "Day 3" stub titles → 3.
+  function zuvaFromTitle(title) {
+    const m = /\b(?:zuva|day)\s*(\d+)/i.exec(String(title || ''));
+    return m ? parseInt(m[1], 10) : null;
+  }
+
+  function getLessonTitle() {
+    const h = document.querySelector('.fcom_lesson_title h1');
+    return h ? h.textContent.trim() : '';
+  }
+
+  // Which Zuva a lesson page is: its FluentCommunity URL (if listed), else the Zuva/Day
+  // number in its title, else an exact title match.
+  function findLessonEntry(lessons, { href, title } = {}) {
+    const list = lessons || [];
+    const byUrl = href ? findZuvaForUrl(list, href) : null;
+    if (byUrl) return byUrl;
+    const n = zuvaFromTitle(title);
+    if (n !== null) {
+      const byNum = list.find((l) => l.zuva === n);
+      if (byNum) return byNum;
+    }
+    const t = String(title || '').trim().toLowerCase();
+    return (t && list.find((l) => String(l.title || '').trim().toLowerCase() === t)) || null;
+  }
+
+  // Onboarding (Zuva 0) is setup, not a lesson — it never counts towards progress.
+  function isOnboardingLesson(lesson) {
+    return zuvaFromTitle(lesson && lesson.title) === 0 || /onboarding/i.test((lesson && lesson.section) || '');
+  }
+
+  // Progress over real lessons only. justCompletedId covers the lesson being completed right
+  // now, which FluentCommunity's cached course data doesn't know about yet.
+  function lessonProgress(course, justCompletedId) {
+    const lessons = ((course && course.lessons) || []).filter((l) => !isOnboardingLesson(l));
+    const done = new Set((course && course.completedIds) || []);
+    if (justCompletedId) done.add(String(justCompletedId));
+    const completed = lessons.filter((l) => done.has(l.id)).length;
+    const total = lessons.length;
+    return { completed, total, pct: total ? Math.round((completed / total) * 100) : 0 };
+  }
+
+  // Rotating encouragement under the progress ring. Add Shona lines here any time.
+  const AFFIRMATIONS = [
+    'One step closer to speaking Shona with confidence.',
+    'Every day stacks. You\'re closer than yesterday.',
+    'Little by little, Shona is becoming yours.',
+    'Ten minutes a day beats two hours on a Sunday.',
+    'Your future self will thank you for today.',
+    'Showing up is the whole secret. You showed up.',
+  ];
+  function pickAffirmation(seed) {
+    const i = Number.isInteger(seed) ? seed : Math.floor(Math.random() * AFFIRMATIONS.length);
+    return AFFIRMATIONS[((i % AFFIRMATIONS.length) + AFFIRMATIONS.length) % AFFIRMATIONS.length];
+  }
+
+  // Plain-editor formatting: a paragraph starting "🎯 Basa raNhasi" turns itself and everything
+  // after it into the mission card; paragraphs starting with 💡 get the tip style. Classes only —
+  // nodes are never moved, so FluentCommunity's editor/Vue keep full control of the content.
+  function styleLessonContent(lessonBody) {
+    const kids = Array.from(lessonBody.children).filter((el) =>
+      el.id !== 'sv-phrasebank' && el.id !== 'shonaverse-lesson-actions');
+    const headIdx = kids.findIndex((el) => /^\s*🎯\s*basa\s*ranhasi/i.test(el.textContent || ''));
+    kids.forEach((el, i) => {
+      const inMission = headIdx !== -1 && i >= headIdx && el.tagName !== 'HR';
+      el.classList.toggle('sv-ml', inMission);
+      el.classList.toggle('sv-ml-head', inMission && i === headIdx);
+      el.classList.toggle('sv-ml-last', inMission && (i === kids.length - 1 || (kids[i + 1] && kids[i + 1].tagName === 'HR')));
+      el.classList.toggle('sv-tip-line', !inMission && /^\s*💡/.test(el.textContent || ''));
+    });
+  }
+
+  // Phrase bank + mazwi button for one lesson, built from mazwi's lessons.json so the page and
+  // the app can never disagree. Returns '' when the lesson has nothing to show (e.g. onboarding).
+  function renderPhraseBankHtml(entry) {
+    if (!entry) return '';
+    const slug = entry.slug || 'zuva-' + String(entry.zuva).padStart(2, '0');
+    // Tip text may use **bold** (escaped first, so only that one bit of markup is allowed).
+    const rich = (t) => escHtml(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    const items = (entry.new || []).map((w) =>
+      `<li><strong class="sv-pb-shona">${escHtml(w.shona)}</strong> <span class="sv-pb-eng">${escHtml(w.english)}</span></li>`).join('');
+    const newList = items ? `<div class="sv-pb-title">Mazwi anhasi</div><ul class="sv-pb-list">${items}</ul>` : '';
+    const tip = entry.tip
+      ? `<div class="sv-pb-section"><div class="sv-pb-label">💡 ${entry.type === 'sound' ? 'Sound pattern' : 'Grammar pattern'}</div><div class="sv-pb-tip">${rich(entry.tip)}</div></div>`
+      : '';
+    const previous = (entry.recycled || []).length
+      ? `<div class="sv-pb-section"><div class="sv-pb-label">Words from previous lessons</div><div class="sv-pb-recycled">${entry.recycled.map(escHtml).join(' · ')}</div></div>`
+      : '';
+    if (!newList && !tip && !previous) return '';
+    const btn = items
+      ? `<a class="sv-mazwi-btn" href="https://mazwi.app/deck/${escHtml(slug)}" target="_blank" rel="noopener">🎴 Practice Today's Vocab in Mazwi</a>`
+      : '';
+    return `${newList}${tip}${previous}${btn}`;
+  }
+
+  // Inserts the phrase bank right under the lesson video (or at the top of the lesson content
+  // when there's no video). Idempotent: keyed on the Zuva number, so re-mounts don't re-render.
+  function mountPhraseBank(lessonBody) {
+    const entry = findLessonEntry(_lessonsManifest || [], { href: window.location.href, title: getLessonTitle() });
+    const html = renderPhraseBankHtml(entry);
+    let block = document.getElementById('sv-phrasebank');
+    if (!html) { if (block) block.remove(); return; }
+    if (block && block.getAttribute('data-zuva') === String(entry.zuva) && lessonBody.contains(block)) return;
+    if (block) block.remove();
+    block = document.createElement('div');
+    block.id = 'sv-phrasebank';
+    block.className = 'sv-phrasebank';
+    block.setAttribute('data-zuva', String(entry.zuva));
+    block.innerHTML = html;
+    let anchor = lessonBody.querySelector('iframe, video, .wp-block-embed, figure');
+    while (anchor && anchor.parentElement !== lessonBody) anchor = anchor.parentElement;
+    if (anchor) anchor.after(block);
+    else lessonBody.insertBefore(block, lessonBody.firstChild);
+  }
+
   function normalizePath(u) {
     try { return new URL(u, 'https://speakshona.com').pathname.replace(/\/+$/, '').toLowerCase(); }
     catch (e) { return ''; }
@@ -400,11 +518,14 @@
     const completedDates = (completions || []).map((c) => c.completed_at);
     const streak = calculateStreak(completedDates);
     const weekMap = getWeekCompletionMap(completedDates);
-    const progress = getCourseProgress();
     const lessonNumber = getLessonNumber();
-    const totalLessons = getTotalLessonCount();
+    const course = await getCourse();
+    const prog = course ? lessonProgress(course, lessonId) : null;
+    const progress = prog ? prog.pct : getCourseProgress();
+    const totalLessons = prog ? prog.total : getTotalLessonCount();
+    const completedCount = prog ? prog.completed : null;
     // Manifest is prefetched on mount; never block the celebration on the network.
-    const zuva = findZuvaForUrl(_lessonsManifest || [], window.location.href);
+    const zuva = findLessonEntry(_lessonsManifest || [], { href: window.location.href, title: getLessonTitle() });
     console.log('[SV celebrate] streak:', streak, 'progress:', progress, 'lessonNumber:', lessonNumber, 'totalLessons:', totalLessons);
 
     const { data: existingMissions, error: missionsErr } = await supabase
@@ -420,10 +541,10 @@
     const hasSubmittedMission = existingMissions && existingMissions.length > 0;
     console.log('[SV celebrate] hasSubmittedMission:', hasSubmittedMission, '- showing modal now');
 
-    showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, hasSubmittedMission, zuva });
+    showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, completedCount, hasSubmittedMission, zuva });
   }
 
-  function showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, hasSubmittedMission, zuva = null }) {
+  function showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, completedCount = null, hasSubmittedMission, zuva = null }) {
     let wrap = document.getElementById('sv-celebration-modal-wrap');
     if (!wrap) {
       wrap = document.createElement('div');
@@ -439,8 +560,8 @@
     // Zuva numbering comes from mazwi's lessons.json when this page is in it; FluentCommunity's
     // own 'Lesson X of Y' is only a fallback (it counts onboarding as lesson 1).
     const dayLabel = zuva
-      ? (zuva.zuva > 0 ? `Zuva ${zuva.zuva} Complete!` : 'Onboarding Complete!')
-      : (lessonNumber ? `Day ${lessonNumber} Complete!` : 'Lesson Complete!');
+      ? (zuva.zuva > 0 ? `Zuva ${zuva.zuva} complete!` : 'You\'re all set up!')
+      : (lessonNumber ? `Lesson ${lessonNumber} complete!` : 'Lesson complete!');
 
     const dayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     const calendarHtml = dayLetters.map((letter, i) => {
@@ -463,7 +584,8 @@
     const ringDashOffset = ringCircumference * (1 - progressForRing / 100);
     const progressLabel = progress !== null ? `${progress}%` : '—';
 
-    const lessonsCompleted = (totalLessons !== null && progress !== null) ? Math.round((progress / 100) * totalLessons) : null;
+    const lessonsCompleted = completedCount !== null ? completedCount
+      : ((totalLessons !== null && progress !== null) ? Math.round((progress / 100) * totalLessons) : null);
     const lessonsCountLabel = (lessonsCompleted !== null && totalLessons !== null)
       ? `<p style="margin:0 0 2px; font-size:0.85rem; color:var(--sv-text-muted);">${lessonsCompleted} of ${totalLessons} lessons</p>`
       : '';
@@ -474,6 +596,11 @@
       const filled = dayInWeek !== null && i < dayInWeek;
       return `<div style="flex:1; height:6px; border-radius:3px; background:${filled ? 'var(--sv-orange-light)' : 'var(--sv-track-light)'};"></div>`;
     }).join('');
+
+    const nextBtn = document.querySelector('.fcom_lesson_header .fcom_lesson_nav button[aria-label="Next lesson"]');
+    const hasNext = !!(nextBtn && nextBtn.getAttribute('aria-disabled') !== 'true');
+    const nextZuva = zuva && (_lessonsManifest || []).find((l) => l.zuva === zuva.zuva + 1);
+    const nextLabel = !hasNext ? 'Done for today' : (nextZuva ? `Next: Zuva ${nextZuva.zuva} →` : 'Next lesson →');
 
     wrap.innerHTML = `
       <div class="sv-modal-card sv-celebration-card">
@@ -487,7 +614,7 @@
         <div style="display:flex; justify-content:center; gap:10px; margin-bottom:12px;">
           ${calendarHtml}
         </div>
-        <p style="text-align:center; margin:0 0 20px; color:var(--sv-text-muted); font-size:0.9rem;">${streak} day${streak === 1 ? '' : 's'} in a row, toonana mangwana.</p>
+        <p style="text-align:center; margin:0 0 20px; color:var(--sv-text-muted); font-size:0.9rem;">${streak} day${streak === 1 ? '' : 's'} in a row. Toonana mangwana!</p>
 
         <div style="height:1px; background:var(--sv-border); margin:0 0 20px;"></div>
 
@@ -502,7 +629,7 @@
             </div>
           </div>
           ${lessonsCountLabel}
-          <p style="margin:0 0 16px; color:var(--sv-text-muted); font-size:0.85rem;">One step closer to speaking Shona with confidence.</p>
+          <p class="sv-affirmation" style="margin:0 0 16px; color:var(--sv-text-muted); font-size:0.85rem;">${escHtml(pickAffirmation())}</p>
           ${currentWeek !== null ? `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
               <span style="font-size:0.8rem; font-weight:700; color:var(--sv-ink);">Week ${currentWeek}</span>
@@ -516,18 +643,22 @@
           <div style="height:1px; background:var(--sv-border); margin:0 0 20px;"></div>
           <div style="text-align:left; margin-bottom:10px;">
             <div style="font-size:0.72rem; font-weight:700; color:var(--sv-orange); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:2px;">Basa raNhasi</div>
-            <div style="font-size:1.05rem; font-weight:800; color:var(--sv-ink);">Not done yet — let's fix that</div>
+            <div style="font-size:1.05rem; font-weight:800; color:var(--sv-ink);">Not done yet. Do it before you go</div>
           </div>
           <button type="button" id="sv-celebration-submit-mission" style="width:100%; background:none; border:1.5px dashed var(--sv-border); border-radius:16px; padding:22px 16px; cursor:pointer; text-align:center; margin-bottom:16px;">
             <div style="width:44px; height:44px; border-radius:50%; background:var(--sv-cream); color:var(--sv-orange); display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">${svIconCamera}</div>
-            <div style="font-weight:700; color:var(--sv-ink); font-size:0.92rem; margin-bottom:2px;">Add Your Basa raNhasi</div>
-            <div style="color:var(--sv-text-muted); font-size:0.8rem; margin-bottom:8px;">A photo of your notes or a recording of your practice from today.</div>
+            <div style="font-weight:700; color:var(--sv-ink); font-size:0.92rem; margin-bottom:2px;">Post your Basa raNhasi</div>
+            <div style="color:var(--sv-text-muted); font-size:0.8rem; margin-bottom:8px;">A photo of your notebook or a voice note. It takes one minute, and it's where the speaking sticks.</div>
             <div style="color:var(--sv-orange); font-weight:700; font-size:0.86rem;">Do it now ›</div>
           </button>
         ` : ''}
 
+        ${zuva && zuva.new && zuva.new.length ? `
+          <a class="sv-celebration-mazwi" href="https://mazwi.app/deck/${escHtml(zuva.slug || 'zuva-' + String(zuva.zuva).padStart(2, '0'))}" target="_blank" rel="noopener">🎴 Practice today's words in mazwi</a>
+        ` : ''}
+
         <button type="button" id="sv-celebration-continue" style="width:100%; background:var(--sv-terracotta); color:#ffffff; border:none; padding:13px; border-radius:12px; font-weight:700; font-size:0.98rem; cursor:pointer;">
-          Continue
+          ${escHtml(nextLabel)}
         </button>
       </div>
     `;
@@ -540,6 +671,7 @@
 
     document.getElementById('sv-celebration-continue')?.addEventListener('click', () => {
       wrap.classList.remove('is-active');
+      if (hasNext) nextBtn.click();
     });
 
     document.getElementById('sv-celebration-submit-mission')?.addEventListener('click', () => {
@@ -558,7 +690,7 @@
   }
 
   function mountLessonUI() {
-    loadLessonsManifest(); // prefetch for the celebration modal (cached after first load)
+    if (!_lessonsManifest) loadLessonsManifest().then((m) => { if (m && m.length) scheduleMountUI(); });
     const lessonBody = document.querySelector('.fcom_lesson_details .fcom_lesson_content');
     const commentsWrap = document.querySelector('.fcom_lesson_comments');
     const lessonId = getLessonId();
@@ -591,6 +723,8 @@
     }
 
     if (lessonBody) {
+      mountPhraseBank(lessonBody);
+      styleLessonContent(lessonBody);
       let buttonStack = document.getElementById('shonaverse-lesson-actions');
       if (!buttonStack) {
         buttonStack = document.createElement('div');
@@ -814,6 +948,51 @@
   const FEED_DASHBOARD_LESSONS = [];
   const FEED_DASHBOARD_COURSE_URL = 'https://speakshona.com/shonaverse/course/shona-lessons/lessons';
 
+  const COURSE_SLUG = 'shona-lessons';
+
+  // Flattens FluentCommunity's courses/{slug}/by-slug response into lessons in course order.
+  function flattenCourseLessons(resp, portalUrl) {
+    const course = (resp && resp.course) || {};
+    const portal = String(portalUrl || 'https://speakshona.com/shonaverse').replace(/\/+$/, '');
+    return ((resp && resp.sections) || []).flatMap((sec) => (sec.lessons || []).map((l) => ({
+      id: String(l.id),
+      title: l.title || '',
+      slug: l.slug || '',
+      section: sec.title || '',
+      url: `${portal}/course/${course.slug || COURSE_SLUG}/lessons/${l.slug}`,
+    })));
+  }
+
+  // Enrollment, lesson order and the member's own completed lessons, straight from
+  // FluentCommunity (same data its "Course progress" box uses). Null when unavailable.
+  let _coursePromise = null;
+  function getCourse() {
+    if (_coursePromise) return _coursePromise;
+    _coursePromise = (async () => {
+      const a = window.fluentComAdmin;
+      const rest = a && a.rest;
+      if (!rest || !rest.url || typeof fetch !== 'function') return null;
+      try {
+        const res = await fetch(`${rest.url}/courses/${COURSE_SLUG}/by-slug`, {
+          headers: rest.nonce ? { 'X-WP-Nonce': rest.nonce } : {},
+          credentials: 'include',
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        const track = json.track || {};
+        return {
+          isEnrolled: !!(track.isEnrolled !== undefined ? track.isEnrolled : json.course && json.course.isEnrolled),
+          completedIds: (track.completed_lessons || []).map(String),
+          lessons: flattenCourseLessons(json, a.portal_url),
+          url: `${String(a.portal_url || 'https://speakshona.com/shonaverse').replace(/\/+$/, '')}/course/${COURSE_SLUG}`,
+        };
+      } catch (e) {
+        return null;
+      }
+    })();
+    return _coursePromise;
+  }
+
   // Distinct lessons completed, deduped by id so a stray duplicate
   // lesson_completions row can't inflate the count.
   function getTotalCompletedCount(completedLessonIds) {
@@ -842,7 +1021,61 @@
   // #shonaverse-lesson-actions above) - scheduleMountUI() re-runs mountUI()
   // on many DOM mutations, and repeatedly re-querying Supabase for a banner
   // that's already showing correct data would be wasteful.
+  // "Latest missions" card, above FluentCommunity's Recent Activities in the right sidebar.
+  function renderLatestMissionsHtml(missions, lessonsById) {
+    if (!missions || !missions.length) {
+      return '<div class="sv-lm-empty">No missions yet. Be the first! ✍️</div>';
+    }
+    return missions.map((m) => {
+      const name = String(m.user_name || 'Learner').replace(/[()[\]{}<>]/g, '').trim();
+      const lesson = lessonsById[String(m.lesson_id)];
+      const e = lesson && findLessonEntry(_lessonsManifest || [], { href: lesson.url, title: lesson.title });
+      const where = e && e.zuva > 0 ? 'Zuva ' + e.zuva : (lesson ? lesson.title : '');
+      const memo = String(m.memo || '').slice(0, 90);
+      const thumb = safeUrl(m.media_url) && m.media_type !== 'video'
+        ? `<img class="sv-lm-thumb" src="${safeUrl(m.media_url)}" alt="">`
+        : (safeUrl(m.media_url) ? '<span class="sv-lm-thumb sv-lm-thumb-video">🎥</span>' : '');
+      const inner = `
+        <div class="sv-lm-avatar">${safeUrl(m.user_avatar) ? `<img src="${safeUrl(m.user_avatar)}" alt="">` : escHtml(name.charAt(0).toUpperCase() || 'S')}</div>
+        <div class="sv-lm-body">
+          <div class="sv-lm-name">${escHtml(name)}${where ? ` <span class="sv-lm-where">· ${escHtml(where)}</span>` : ''}</div>
+          ${memo ? `<div class="sv-lm-memo">${escHtml(memo)}</div>` : ''}
+        </div>
+        ${thumb}`;
+      return lesson && safeUrl(lesson.url)
+        ? `<a class="sv-lm-item" href="${safeUrl(lesson.url)}">${inner}</a>`
+        : `<div class="sv-lm-item">${inner}</div>`;
+    }).join('');
+  }
+
+  function mountLatestMissions() {
+    const side = document.querySelector('.fcom_side_box');
+    if (!side || document.getElementById('sv-latest-missions')) return;
+    const box = document.createElement('div');
+    box.id = 'sv-latest-missions';
+    box.className = 'app_side_widget sv-latest-missions';
+    box.innerHTML = '<div class="widget_header"><h3>Latest missions</h3></div><div class="sv-lm-list"><div class="sv-lm-empty">Loading…</div></div>';
+    const recent = side.querySelector('.widget_recent_activities');
+    side.insertBefore(box, recent || side.firstChild);
+    renderLatestMissions(box);
+  }
+
+  async function renderLatestMissions(box) {
+    const [course, , res] = await Promise.all([
+      getCourse(),
+      loadLessonsManifest(),
+      supabase.from('lesson_missions').select('*').order('created_at', { ascending: false }).limit(6),
+    ]);
+    const list = box.querySelector('.sv-lm-list');
+    if (!list) return;
+    if (res.error) { list.innerHTML = '<div class="sv-lm-empty">Could not load missions.</div>'; return; }
+    const lessonsById = {};
+    (course ? course.lessons : []).forEach((l) => { lessonsById[l.id] = l; });
+    list.innerHTML = renderLatestMissionsHtml(res.data || [], lessonsById);
+  }
+
   function mountFeedDashboard() {
+    mountLatestMissions();
     const feedBox = document.querySelector('.fcom_feed_box');
     if (!feedBox) return;
 
@@ -872,10 +1105,12 @@
     banner.innerHTML = '<div style="text-align:center; padding:20px 0; color:var(--sv-text-muted);">Loading your progress...</div>';
 
     const user = getUserInfo();
-    const { data: completions, error } = await supabase
-      .from('lesson_completions')
-      .select('lesson_id, completed_at')
-      .eq('user_name', user.name);
+    const [course, , completionsRes] = await Promise.all([
+      getCourse(),
+      loadLessonsManifest(),
+      supabase.from('lesson_completions').select('lesson_id, completed_at').eq('user_name', user.name),
+    ]);
+    const { data: completions, error } = completionsRes;
 
     if (error) {
       banner.innerHTML = `<div style="text-align:center; padding:20px 0; color:var(--sv-red);">Could not load your progress: ${escHtml(error.message)}</div>`;
@@ -883,20 +1118,41 @@
     }
 
     const rows = completions || [];
-    const courseRows = filterCompletionsForCourse(rows, FEED_DASHBOARD_LESSONS);
-    const completedIds = courseRows.map((r) => r.lesson_id);
+    // Real lesson list + completion ticks from FluentCommunity when available; the hand-kept
+    // manifest (empty) is only the fallback when the REST API can't be reached.
+    const courseLessons = course ? course.lessons : FEED_DASHBOARD_LESSONS;
+    const courseRows = filterCompletionsForCourse(rows, courseLessons);
+    const onboardingIds = new Set(courseLessons.filter(isOnboardingLesson).map((l) => String(l.id)));
+    const completedIds = course ? course.completedIds : courseRows.map((r) => r.lesson_id);
+    // Onboarding still counts as 'done' when finding the next lesson, but not in the ✓ total.
+    const countedIds = completedIds.filter((id) => !onboardingIds.has(String(id)));
     const completedDates = courseRows.map((r) => r.completed_at);
 
     const streak = calculateStreak(completedDates);
-    const completedCount = getTotalCompletedCount(completedIds);
-    const currentLesson = getCurrentLesson(FEED_DASHBOARD_LESSONS, completedIds);
+    const completedCount = getTotalCompletedCount(countedIds);
+    const currentLesson = getCurrentLesson(courseLessons, completedIds);
+    const courseUrl = course ? course.url : FEED_DASHBOARD_COURSE_URL;
+    const zuvaLabel = (lesson) => {
+      const e = lesson && findLessonEntry(_lessonsManifest || [], { href: lesson.url, title: lesson.title });
+      if (!e || e.zuva <= 0 || zuvaFromTitle(lesson.title) !== null) return ''; // title already says it
+      return ' · Zuva ' + e.zuva;
+    };
 
     const svIconCheck = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
     const svIconFlame = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2c1 3-3 4-3 8a3 3 0 0 0 6 0c1 1 2 2.5 2 4.5A5.5 5.5 0 0 1 6 14c0-5 4-6 6-12z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg>`;
     const svIconMap = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 3 3 5v16l6-2 6 2 6-2V3l-6 2-6-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 3v16M15 5v16" stroke="currentColor" stroke-width="1.8"></path></svg>`;
 
     let lessonCard;
-    if (FEED_DASHBOARD_LESSONS.length === 0) {
+    if (course && !course.isEnrolled) {
+      lessonCard = `
+        <div class="sv-dash-lesson-card">
+          <div class="sv-dash-lesson-eyebrow">Start here</div>
+          <div class="sv-dash-lesson-title">Daily Shona Lessons</div>
+          <p class="sv-dash-lesson-sub">Ten minutes a day. Join the course to get your first lesson.</p>
+          <a class="sv-dash-lesson-btn" href="${safeUrl(courseUrl)}">Start the course</a>
+        </div>
+      `;
+    } else if (courseLessons.length === 0) {
       lessonCard = `
         <div class="sv-dash-lesson-card">
           <div class="sv-dash-lesson-eyebrow">Coming soon</div>
@@ -907,7 +1163,7 @@
     } else if (currentLesson) {
       lessonCard = `
         <div class="sv-dash-lesson-card">
-          <div class="sv-dash-lesson-eyebrow">Continue learning</div>
+          <div class="sv-dash-lesson-eyebrow">Continue learning${escHtml(zuvaLabel(currentLesson))}</div>
           <div class="sv-dash-lesson-title">${escHtml(currentLesson.title)}</div>
           <a class="sv-dash-lesson-btn" href="${safeUrl(currentLesson.url)}">Start lesson</a>
         </div>
@@ -917,7 +1173,7 @@
         <div class="sv-dash-lesson-card">
           <div class="sv-dash-lesson-eyebrow">All caught up</div>
           <div class="sv-dash-lesson-title">You've completed every lesson so far</div>
-          <a class="sv-dash-lesson-btn" href="${FEED_DASHBOARD_COURSE_URL}">Browse courses</a>
+          <a class="sv-dash-lesson-btn" href="${safeUrl(courseUrl)}">Browse lessons</a>
         </div>
       `;
     }
@@ -998,6 +1254,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { escHtml, safeUrl, findZuvaForUrl, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();
