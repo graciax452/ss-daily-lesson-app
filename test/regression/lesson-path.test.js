@@ -62,7 +62,7 @@ describe('phrase bank', () => {
   it('escapes data from the manifest', () => {
     const { renderPhraseBankHtml } = loadApp();
     const html = renderPhraseBankHtml({ zuva: 9, new: [{ shona: '<img src=x onerror=alert(1)>', english: 'x' }] });
-    expect(html).not.toContain('<img');
+    expect(html).not.toContain('<img src=x'); // the member-supplied markup, not our own icon
   });
 
   it('mounts right under the lesson video, once, on a "Day N" page', () => {
@@ -85,7 +85,7 @@ describe('phrase bank', () => {
     expect(document.querySelectorAll('#sv-phrasebank').length).toBe(1);
   });
 
-  it('adds the Basa raNhasi card from the lesson data right after the phrase bank, once', () => {
+  it('adds the Basa ranhasi card from the lesson data right after the phrase bank, once', () => {
     const { mountPhraseBank, _setLessonsManifest } = loadApp({ fixture: 'full-lesson-page' });
     _setLessonsManifest(MANIFEST);
     document.querySelector('.fcom_lesson_title h1').textContent = 'Zuva 1 — Ehe, Kwete, Handei!';
@@ -95,7 +95,7 @@ describe('phrase bank', () => {
     const cards = document.querySelectorAll('#sv-lesson-mission');
     expect(cards.length).toBe(1);
     expect(cards[0].previousElementSibling.id).toBe('sv-phrasebank');
-    expect(cards[0].textContent).toContain('Basa raNhasi');
+    expect(cards[0].textContent).toContain('Basa ranhasi');
     expect(cards[0].textContent).toContain('Bonus:');
   });
 
@@ -103,6 +103,19 @@ describe('phrase bank', () => {
     const { renderMissionHtml } = loadApp();
     expect(renderMissionHtml({ zuva: 1, mission: '<script>x</script>' })).not.toContain('<script>');
     expect(renderMissionHtml({ zuva: 1, mission: '' })).toBe('');
+  });
+
+  it('builds the Zuva 0 onboarding page (steps + first mission), once', () => {
+    const { mountPhraseBank, _setLessonsManifest } = loadApp({ fixture: 'full-lesson-page' });
+    _setLessonsManifest(MANIFEST);
+    document.querySelector('.fcom_lesson_title h1').textContent = 'Zuva 0 — Mauya! Zuva nezuva (Onboarding)';
+    const body = document.querySelector('.fcom_lesson_content');
+    mountPhraseBank(body);
+    mountPhraseBank(body);
+    expect(document.querySelectorAll('.sv-onboarding').length).toBe(1);
+    expect(document.querySelector('.sv-onboarding').textContent).toContain('How every Zuva works');
+    expect(document.querySelectorAll('#sv-lesson-mission').length).toBe(1);
+    expect(document.getElementById('sv-lesson-mission').textContent).toContain('Your first mission');
   });
 
   it('shows nothing on a page that is not a Zuva lesson', () => {

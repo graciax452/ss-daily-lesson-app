@@ -94,7 +94,7 @@
     return AFFIRMATIONS[((i % AFFIRMATIONS.length) + AFFIRMATIONS.length) % AFFIRMATIONS.length];
   }
 
-  // Plain-editor formatting: a paragraph starting "🎯 Basa raNhasi" turns itself and everything
+  // Plain-editor formatting: a paragraph starting "🎯 Basa ranhasi" turns itself and everything
   // after it into the mission card; paragraphs starting with 💡 get the tip style. Classes only —
   // nodes are never moved, so FluentCommunity's editor/Vue keep full control of the content.
   function styleLessonContent(lessonBody) {
@@ -120,11 +120,25 @@
     return 'https://mazwi.app/deck/' + encodeURIComponent(slug) + (here ? '?back=' + encodeURIComponent(here) : '');
   }
 
-  // Basa raNhasi card from lessons.json (Table A). '' when the lesson has no mission text.
+  const MAZWI_ICON_URL = 'https://mazwi.app/icons/icon-192.png';
+  function mazwiCardHtml(slug) {
+    return `<a class="sv-mazwi-card" href="${escHtml(mazwiDeckUrl(slug))}" target="_blank" rel="noopener">`
+      + `<img class="sv-mazwi-card-icon" src="${MAZWI_ICON_URL}" alt="" width="40" height="40">`
+      + '<span class="sv-mazwi-card-text"><strong>Practise these words in mazwi</strong>'
+      + '<span>Flashcards that help the words stick</span></span>'
+      + '<span class="sv-mazwi-card-arrow" aria-hidden="true">→</span></a>';
+  }
+
+  // Shona section names get their English meaning in Week 1, while learners are new to them.
+  function gloss(entry, english) {
+    return entry && entry.week <= 1 ? ` <em class="sv-gloss">(${english})</em>` : '';
+  }
+
+  // Basa ranhasi card from lessons.json (Table A). '' when the lesson has no mission text.
   function renderMissionHtml(entry) {
     if (!entry || !entry.mission) return '';
     const bonus = entry.bonus ? `<p class="sv-lm-bonus"><em>Bonus:</em> ${escHtml(entry.bonus)}</p>` : '';
-    return `<div class="sv-mission-title">🎯 Basa raNhasi</div><p>${escHtml(entry.mission)}</p>${bonus}`;
+    return `<div class="sv-mission-title">🎯 Basa ranhasi${gloss(entry, "today's mission")}</div><p>${escHtml(entry.mission)}</p>${bonus}`;
   }
 
   // Phrase bank + mazwi button for one lesson, built from mazwi's lessons.json so the page and
@@ -136,7 +150,7 @@
     const rich = (t) => escHtml(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     const items = (entry.new || []).map((w) =>
       `<li><strong class="sv-pb-shona">${escHtml(w.shona)}</strong> <span class="sv-pb-eng">${escHtml(w.english)}</span></li>`).join('');
-    const newList = items ? `<div class="sv-pb-title">Mazwi anhasi</div><ul class="sv-pb-list">${items}</ul>` : '';
+    const newList = items ? `<div class="sv-pb-title">Mazwi anhasi${gloss(entry, "today's words")}</div><ul class="sv-pb-list">${items}</ul>` : '';
     const tip = entry.tip
       ? `<div class="sv-pb-section sv-pb-pattern"><div class="sv-pb-label">💡 ${entry.type === 'sound' ? 'Sound pattern' : 'Grammar pattern'}</div><div class="sv-pb-tip">${rich(entry.tip)}</div></div>`
       : '';
@@ -144,17 +158,48 @@
       ? `<div class="sv-pb-section"><div class="sv-pb-label">Words from previous lessons</div><div class="sv-pb-recycled">${entry.recycled.map(escHtml).join(' · ')}</div></div>`
       : '';
     if (!newList && !tip && !previous) return '';
-    const btn = items
-      ? `<a class="sv-mazwi-btn" href="${escHtml(mazwiDeckUrl(slug))}" target="_blank" rel="noopener">${SV_ICON_MAZWI}<span>Practice Today's Vocab in Mazwi</span></a>`
-      : '';
+    const btn = items ? mazwiCardHtml(slug) : '';
     return `${newList}${tip}${previous}${btn}`;
   }
 
   // Inserts the phrase bank right under the lesson video (or at the top of the lesson content
   // when there's no video). Idempotent: keyed on the Zuva number, so re-mounts don't re-render.
+  // Zuva 0 (onboarding) is one fixed page, so its text lives here rather than in Table A.
+  // Edit copy here; the FluentCommunity lesson only needs the video.
+  function renderOnboardingHtml() {
+    return `
+      <div class="sv-ob-title">Mauya! Welcome to Shonaverse</div>
+      <p>The best way to learn Shona? Move to Zimbabwe and hear it every day. The next best thing? A short lesson from me, every day, wherever you are. That's what this is: 10–15 minutes a day, with words that keep coming back until they stick. Mistakes are welcome; they mean it's working.</p>
+      <p class="sv-ob-muted">Want to practise live too? Join the Friday live classes (included with Shonaverse + Live Classes).</p>
+
+      <div class="sv-pb-label sv-ob-section">How every Zuva works</div>
+      <ol class="sv-ob-steps">
+        <li><strong>Watch the lesson</strong> (5–7 mins). When Korikori pops up saying <em>Taurai!</em>, answer out loud!</li>
+        <li><strong>Check Mazwi anhasi</strong> <em class="sv-gloss">(today's words)</em>. Today's words, a 💡 pattern, and words from previous lessons.</li>
+        <li><strong>Write it in your notebook.</strong> Say each line out loud as you write. (No PDFs here, just you and a pen.)</li>
+        <li><strong>Post your Basa ranhasi</strong> <em class="sv-gloss">(today's mission)</em>. Tap <strong>Submit Mission</strong> under the lesson and add a photo of your page (or a voice note). Cheer on a classmate while you're there!</li>
+      </ol>
+
+      <div class="sv-ob-info"><span>⚡</span><div><strong>Optional booster:</strong> tap <strong>Practise these words in mazwi</strong> under the words to send them to your flashcards. It works on your phone or laptop.</div></div>
+      <div class="sv-ob-info"><span>🌟</span><div><strong>Every 7th Zuva is a Special Mission:</strong> a short speaking video putting the whole week together. Camera on you or on your notebook, your choice.</div></div>
+      <div class="sv-ob-info"><span>🧭</span><div><strong>Already know some Shona?</strong> Start at Zuva 1 anyway. Move quickly through what you know, but do the missions; that's where the speaking clicks.</div></div>
+    `;
+  }
+  function renderOnboardingMissionHtml() {
+    return `
+      <div class="sv-mission-title">🎯 Your first mission, before Zuva 1</div>
+      <ol class="sv-ob-steps sv-ob-steps-mission">
+        <li>Go to <strong>Intros</strong>.</li>
+        <li>Say hello: who are you, and why are you learning Shona? (English is totally fine!)</li>
+        <li>Tap <strong>Mark Lesson Complete</strong> below and jump into <strong>Zuva 1</strong>!</li>
+      </ol>
+    `;
+  }
+
   function mountPhraseBank(lessonBody) {
     const entry = findLessonEntry(_lessonsManifest || [], { href: window.location.href, title: getLessonTitle() });
-    const html = renderPhraseBankHtml(entry);
+    const isOnboarding = !!(entry && entry.type === 'onboarding');
+    const html = isOnboarding ? renderOnboardingHtml() : renderPhraseBankHtml(entry);
     let block = document.getElementById('sv-phrasebank');
     if (!html) {
       if (block) block.remove();
@@ -166,7 +211,7 @@
     if (block) block.remove();
     block = document.createElement('div');
     block.id = 'sv-phrasebank';
-    block.className = 'sv-phrasebank';
+    block.className = isOnboarding ? 'sv-phrasebank sv-onboarding' : 'sv-phrasebank';
     block.setAttribute('data-zuva', String(entry.zuva));
     block.innerHTML = html;
     let anchor = lessonBody.querySelector('iframe, video, .wp-block-embed, figure');
@@ -177,7 +222,7 @@
   }
 
   function mountMissionCard(afterEl, entry) {
-    const html = renderMissionHtml(entry);
+    const html = entry && entry.type === 'onboarding' ? renderOnboardingMissionHtml() : renderMissionHtml(entry);
     let card = document.getElementById('sv-lesson-mission');
     if (!html) { if (card) card.remove(); return; }
     if (card && card.getAttribute('data-zuva') === String(entry.zuva) && card.previousElementSibling === afterEl) return;
@@ -679,19 +724,19 @@
         ${!hasSubmittedMission ? `
           <div style="height:1px; background:var(--sv-border); margin:0 0 20px;"></div>
           <div style="text-align:left; margin-bottom:10px;">
-            <div style="font-size:0.72rem; font-weight:700; color:var(--sv-orange); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:2px;">Basa raNhasi</div>
+            <div style="font-size:0.72rem; font-weight:700; color:var(--sv-orange); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:2px;">Basa ranhasi</div>
             <div style="font-size:1.05rem; font-weight:800; color:var(--sv-ink);">Not done yet. Do it before you go</div>
           </div>
           <button type="button" id="sv-celebration-submit-mission" style="width:100%; background:none; border:1.5px dashed var(--sv-border); border-radius:16px; padding:22px 16px; cursor:pointer; text-align:center; margin-bottom:16px;">
             <div style="width:44px; height:44px; border-radius:50%; background:var(--sv-cream); color:var(--sv-orange); display:flex; align-items:center; justify-content:center; margin:0 auto 10px;">${svIconCamera}</div>
-            <div style="font-weight:700; color:var(--sv-ink); font-size:0.92rem; margin-bottom:2px;">Post your Basa raNhasi</div>
+            <div style="font-weight:700; color:var(--sv-ink); font-size:0.92rem; margin-bottom:2px;">Post your Basa ranhasi</div>
             <div style="color:var(--sv-text-muted); font-size:0.8rem; margin-bottom:8px;">A photo of your notebook or a voice note. It takes one minute, and it's where the speaking sticks.</div>
             <div style="color:var(--sv-orange); font-weight:700; font-size:0.86rem;">Do it now ›</div>
           </button>
         ` : ''}
 
         ${zuva && zuva.new && zuva.new.length ? `
-          <a class="sv-celebration-mazwi" href="${escHtml(mazwiDeckUrl(zuva.slug || 'zuva-' + String(zuva.zuva).padStart(2, '0')))}" target="_blank" rel="noopener">${SV_ICON_MAZWI}<span>Practice today's words in mazwi</span></a>
+          <a class="sv-celebration-mazwi" href="${escHtml(mazwiDeckUrl(zuva.slug || 'zuva-' + String(zuva.zuva).padStart(2, '0')))}" target="_blank" rel="noopener"><img class="sv-mazwi-mini-icon" src="${MAZWI_ICON_URL}" alt="" width="22" height="22"><span>Practise today's words in mazwi</span></a>
         ` : ''}
 
         <button type="button" id="sv-celebration-continue" style="width:100%; background:var(--sv-terracotta); color:#ffffff; border:none; padding:13px; border-radius:12px; font-weight:700; font-size:0.98rem; cursor:pointer;">
@@ -1291,6 +1336,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();
