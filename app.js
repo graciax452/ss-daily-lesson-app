@@ -4,6 +4,48 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptdWhpbnNraG9maHZ5Y2xrcmJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MjA3NzEsImV4cCI6MjA5OTE5Njc3MX0.eRmLcHn2ywawr2AC_J4mPz3TrDxJVt0qnEMVc9mVSnI'; // <-- Replace with your key
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  // Everything members type (names, memos, replies) and every URL from the database is
+  // untrusted: escape before it goes into innerHTML so one member can't inject markup or
+  // scripts into everyone else's lesson page.
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function safeUrl(u) {
+    const s = String(u == null ? '' : u).trim();
+    return /^https?:\/\//i.test(s) ? escHtml(s) : '';
+  }
+
+  // Lesson list published by mazwi (built from its data/lessons.csv) — the single source of
+  // truth for Zuva numbers, weeks and titles. Matched to the page by its FluentCommunity URL.
+  const MAZWI_LESSONS_URL = 'https://mazwi.app/lessons.json';
+  let _lessonsManifest = null;
+  async function loadLessonsManifest() {
+    if (_lessonsManifest) return _lessonsManifest;
+    try {
+      // Node test runs (module defined) never hit the network.
+      if (typeof fetch !== 'function' || typeof module !== 'undefined') return [];
+      const res = await fetch(MAZWI_LESSONS_URL, { cache: 'no-cache' });
+      const json = await res.json();
+      _lessonsManifest = Array.isArray(json.lessons) ? json.lessons : [];
+    } catch (e) {
+      _lessonsManifest = [];
+    }
+    return _lessonsManifest;
+  }
+
+  function normalizePath(u) {
+    try { return new URL(u, 'https://speakshona.com').pathname.replace(/\/+$/, '').toLowerCase(); }
+    catch (e) { return ''; }
+  }
+  // The manifest entry whose fc_url is this page, or null.
+  function findZuvaForUrl(lessons, href) {
+    const here = normalizePath(href);
+    if (!here) return null;
+    return (lessons || []).find((l) => l.fc_url && normalizePath(l.fc_url) === here) || null;
+  }
+
   // Bulletproof Lesson ID extraction (Strictly Numeric)
   function getLessonId() {
     if (window.fluentComAdmin?.current_lesson?.id) {
@@ -78,7 +120,7 @@
       .order('created_at', { ascending: false });
 
     if (error) {
-      list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--sv-red); font-size:0.85rem;">Error loading submissions: ${error.message}</div>`;
+      list.innerHTML = `<div style="text-align:center; padding:20px; color:var(--sv-red); font-size:0.85rem;">Error loading submissions: ${escHtml(error.message)}</div>`;
       return;
     }
 
@@ -99,39 +141,39 @@
           <!-- Card Header -->
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
             <div style="display:flex; align-items:center; gap:10px;">
-              ${m.user_avatar ? `<img src="${m.user_avatar}" style="width:34px; height:34px; border-radius:50%; object-fit:cover;">` : `<div style="width:34px; height:34px; border-radius:50%; background:var(--sv-cream); color:var(--sv-orange); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">${initial}</div>`}
+              ${safeUrl(m.user_avatar) ? `<img src="${safeUrl(m.user_avatar)}" style="width:34px; height:34px; border-radius:50%; object-fit:cover;">` : `<div style="width:34px; height:34px; border-radius:50%; background:var(--sv-cream); color:var(--sv-orange); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem;">${initial}</div>`}
               <div>
-                <div style="font-weight:700; font-size:0.9rem; color:#1C1917;">${cleanAuthor}</div>
+                <div style="font-weight:700; font-size:0.9rem; color:#1C1917;">${escHtml(cleanAuthor)}</div>
                 <div style="font-size:0.75rem; color:#A8A29E;">${new Date(m.created_at).toLocaleDateString()}</div>
               </div>
             </div>
             
             ${canDelete ? `
-              <button type="button" class="sv-delete-mission-btn" data-mission-id="${m.id}" title="Delete Submission" style="background:rgba(235,85,85,0.12); border:none; color:var(--sv-red); border-radius:6px; padding:4px 8px; font-size:0.78rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+              <button type="button" class="sv-delete-mission-btn" data-mission-id="${escHtml(m.id)}" title="Delete Submission" style="background:rgba(235,85,85,0.12); border:none; color:var(--sv-red); border-radius:6px; padding:4px 8px; font-size:0.78rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
                 🗑️ Delete
               </button>
             ` : ''}
           </div>
 
           <!-- Memo -->
-          ${m.memo ? `<p style="margin:0 0 10px 0; font-size:0.88rem; color:#44403C; line-height:1.4;">${m.memo}</p>` : ''}
+          ${m.memo ? `<p style="margin:0 0 10px 0; font-size:0.88rem; color:#44403C; line-height:1.4;">${escHtml(m.memo)}</p>` : ''}
 
           <!-- Media Display -->
-          ${m.media_url ? (m.media_type === 'video'
-            ? `<video src="${m.media_url}" controls playsinline style="width:100%; border-radius:10px; max-height:360px; background:#000; margin-bottom:10px;"></video>`
-            : `<img src="${m.media_url}" style="width:100\%; border-radius:10px; object-fit:cover; max-height:420px; cursor:zoom-in; margin-bottom:10px;" onclick="window.open('${m.media_url}', '_blank')">`)
+          ${safeUrl(m.media_url) ? (m.media_type === 'video'
+            ? `<video src="${safeUrl(m.media_url)}" controls playsinline style="width:100%; border-radius:10px; max-height:360px; background:#000; margin-bottom:10px;"></video>`
+            : `<a href="${safeUrl(m.media_url)}" target="_blank" rel="noopener"><img src="${safeUrl(m.media_url)}" style="width:100%; border-radius:10px; object-fit:cover; max-height:420px; cursor:zoom-in; margin-bottom:10px;"></a>`)
             : ''
           }
 
           <!-- Reply Bar -->
           <div style="display:flex; align-items:center; gap:12px; margin-top:8px; padding-top:8px; border-top:1px solid #F5F5F4;">
-            <button type="button" class="sv-toggle-reply-btn" data-mission-id="${m.id}" style="background:none; border:none; color:#78716C; font-size:0.82rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px; padding:0;">
+            <button type="button" class="sv-toggle-reply-btn" data-mission-id="${escHtml(m.id)}" style="background:none; border:none; color:#78716C; font-size:0.82rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px; padding:0;">
               💬 Reply ${replies.length > 0 ? `(${replies.length})` : ''}
             </button>
           </div>
 
           <!-- Replies Section -->
-          <div id="sv-replies-${m.id}" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--sv-border); display:${replies.length > 0 ? 'block' : 'none'};">
+          <div id="sv-replies-${escHtml(m.id)}" style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--sv-border); display:${replies.length > 0 ? 'block' : 'none'};">
             <div class="sv-replies-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">
               ${replies.map(r => {
                 const cleanReplyAuthor = (r.user_name || 'Learner').replace(/[()[\]{}<>]/g, '').trim();
@@ -139,11 +181,11 @@
                 return `
                   <div style="background:#F8FAFC; border-radius:8px; padding:8px 10px; font-size:0.83rem; display:flex; justify-content:space-between; align-items:center;">
                     <div>
-                      <span style="font-weight:700; color:#1C1917;">${cleanReplyAuthor}:</span> 
-                      <span style="color:#44403C;">${r.reply_text}</span>
+                      <span style="font-weight:700; color:#1C1917;">${escHtml(cleanReplyAuthor)}:</span> 
+                      <span style="color:#44403C;">${escHtml(r.reply_text)}</span>
                     </div>
                     ${canDeleteReply ? `
-                      <button type="button" class="sv-delete-reply-btn" data-reply-id="${r.id}" title="Delete Reply" style="background:none; border:none; color:var(--sv-red); opacity:0.7; cursor:pointer; font-size:0.85rem; padding:2px 6px; line-height:1;">
+                      <button type="button" class="sv-delete-reply-btn" data-reply-id="${escHtml(r.id)}" title="Delete Reply" style="background:none; border:none; color:var(--sv-red); opacity:0.7; cursor:pointer; font-size:0.85rem; padding:2px 6px; line-height:1;">
                         ✕
                       </button>
                     ` : ''}
@@ -155,7 +197,7 @@
             <!-- Inline Reply Composer -->
             <div style="display:flex; gap:6px;">
               <input type="text" class="sv-reply-input" placeholder="Write a reply..." style="flex:1; border:1px solid #E2E8F0; border-radius:8px; padding:6px 10px; font-size:0.82rem; outline:none; background:#ffffff;">
-              <button type="button" class="sv-send-reply-btn" data-mission-id="${m.id}" style="background:var(--sv-amber); color:#ffffff; border:none; border-radius:8px; padding:6px 12px; font-size:0.82rem; font-weight:600; cursor:pointer;">Send</button>
+              <button type="button" class="sv-send-reply-btn" data-mission-id="${escHtml(m.id)}" style="background:var(--sv-amber); color:#ffffff; border:none; border-radius:8px; padding:6px 12px; font-size:0.82rem; font-weight:600; cursor:pointer;">Send</button>
             </div>
           </div>
         </div>
@@ -361,6 +403,8 @@
     const progress = getCourseProgress();
     const lessonNumber = getLessonNumber();
     const totalLessons = getTotalLessonCount();
+    // Manifest is prefetched on mount; never block the celebration on the network.
+    const zuva = findZuvaForUrl(_lessonsManifest || [], window.location.href);
     console.log('[SV celebrate] streak:', streak, 'progress:', progress, 'lessonNumber:', lessonNumber, 'totalLessons:', totalLessons);
 
     const { data: existingMissions, error: missionsErr } = await supabase
@@ -376,10 +420,10 @@
     const hasSubmittedMission = existingMissions && existingMissions.length > 0;
     console.log('[SV celebrate] hasSubmittedMission:', hasSubmittedMission, '- showing modal now');
 
-    showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, hasSubmittedMission });
+    showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, hasSubmittedMission, zuva });
   }
 
-  function showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, hasSubmittedMission }) {
+  function showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, hasSubmittedMission, zuva = null }) {
     let wrap = document.getElementById('sv-celebration-modal-wrap');
     if (!wrap) {
       wrap = document.createElement('div');
@@ -392,7 +436,11 @@
     const svIconCheckSmall = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
     const svIconCamera = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 8a2 2 0 0 1 2-2h1.5l1-1.5h7l1 1.5H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="12" cy="13" r="3.5" stroke="currentColor" stroke-width="1.6"></circle></svg>`;
 
-    const dayLabel = lessonNumber ? `Day ${lessonNumber} Complete!` : 'Lesson Complete!';
+    // Zuva numbering comes from mazwi's lessons.json when this page is in it; FluentCommunity's
+    // own 'Lesson X of Y' is only a fallback (it counts onboarding as lesson 1).
+    const dayLabel = zuva
+      ? (zuva.zuva > 0 ? `Zuva ${zuva.zuva} Complete!` : 'Onboarding Complete!')
+      : (lessonNumber ? `Day ${lessonNumber} Complete!` : 'Lesson Complete!');
 
     const dayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     const calendarHtml = dayLetters.map((letter, i) => {
@@ -420,8 +468,8 @@
       ? `<p style="margin:0 0 2px; font-size:0.85rem; color:var(--sv-text-muted);">${lessonsCompleted} of ${totalLessons} lessons</p>`
       : '';
 
-    const currentWeek = lessonNumber ? Math.ceil(lessonNumber / 7) : null;
-    const dayInWeek = lessonNumber ? ((lessonNumber - 1) % 7) + 1 : null;
+    const currentWeek = zuva ? (zuva.week > 0 ? zuva.week : null) : (lessonNumber ? Math.ceil(lessonNumber / 7) : null);
+    const dayInWeek = zuva ? (zuva.zuva > 0 ? ((zuva.zuva - 1) % 7) + 1 : null) : (lessonNumber ? ((lessonNumber - 1) % 7) + 1 : null);
     const weekSegments = Array.from({ length: 7 }, (_, i) => {
       const filled = dayInWeek !== null && i < dayInWeek;
       return `<div style="flex:1; height:6px; border-radius:3px; background:${filled ? 'var(--sv-orange-light)' : 'var(--sv-track-light)'};"></div>`;
@@ -510,6 +558,7 @@
   }
 
   function mountLessonUI() {
+    loadLessonsManifest(); // prefetch for the celebration modal (cached after first load)
     const lessonBody = document.querySelector('.fcom_lesson_details .fcom_lesson_content');
     const commentsWrap = document.querySelector('.fcom_lesson_comments');
     const lessonId = getLessonId();
@@ -829,7 +878,7 @@
       .eq('user_name', user.name);
 
     if (error) {
-      banner.innerHTML = `<div style="text-align:center; padding:20px 0; color:var(--sv-red);">Could not load your progress: ${error.message}</div>`;
+      banner.innerHTML = `<div style="text-align:center; padding:20px 0; color:var(--sv-red);">Could not load your progress: ${escHtml(error.message)}</div>`;
       return;
     }
 
@@ -859,8 +908,8 @@
       lessonCard = `
         <div class="sv-dash-lesson-card">
           <div class="sv-dash-lesson-eyebrow">Continue learning</div>
-          <div class="sv-dash-lesson-title">${currentLesson.title}</div>
-          <a class="sv-dash-lesson-btn" href="${currentLesson.url}">Start lesson</a>
+          <div class="sv-dash-lesson-title">${escHtml(currentLesson.title)}</div>
+          <a class="sv-dash-lesson-btn" href="${safeUrl(currentLesson.url)}">Start lesson</a>
         </div>
       `;
     } else {
@@ -949,6 +998,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { escHtml, safeUrl, findZuvaForUrl, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();
