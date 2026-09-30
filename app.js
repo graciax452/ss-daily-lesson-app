@@ -99,7 +99,7 @@
   // nodes are never moved, so FluentCommunity's editor/Vue keep full control of the content.
   function styleLessonContent(lessonBody) {
     const kids = Array.from(lessonBody.children).filter((el) =>
-      el.id !== 'sv-phrasebank' && el.id !== 'shonaverse-lesson-actions');
+      el.id !== 'sv-phrasebank' && el.id !== 'sv-lesson-mission' && el.id !== 'shonaverse-lesson-actions');
     const headIdx = kids.findIndex((el) => /^\s*🎯\s*basa\s*ranhasi/i.test(el.textContent || ''));
     kids.forEach((el, i) => {
       const inMission = headIdx !== -1 && i >= headIdx && el.tagName !== 'HR';
@@ -108,6 +108,23 @@
       el.classList.toggle('sv-ml-last', inMission && (i === kids.length - 1 || (kids[i + 1] && kids[i + 1].tagName === 'HR')));
       el.classList.toggle('sv-tip-line', !inMission && /^\s*💡/.test(el.textContent || ''));
     });
+  }
+
+  // Stacked-cards icon for mazwi links (explicit closing tags — see check-self-closing-svg).
+  const SV_ICON_MAZWI = '<svg class="sv-ic" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="7" width="13" height="14" rx="2.5" stroke="currentColor" stroke-width="1.8"></rect><path d="M8 3.5h10.5A2.5 2.5 0 0 1 21 6v11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>';
+
+  // mazwi deck link for a Zuva, carrying this lesson page's address so mazwi's
+  // '← back to zuva N' returns to the exact lesson (mazwi only accepts speakshona.com).
+  function mazwiDeckUrl(slug) {
+    const here = String(window.location.href || '').split('#')[0];
+    return 'https://mazwi.app/deck/' + encodeURIComponent(slug) + (here ? '?back=' + encodeURIComponent(here) : '');
+  }
+
+  // Basa raNhasi card from lessons.json (Table A). '' when the lesson has no mission text.
+  function renderMissionHtml(entry) {
+    if (!entry || !entry.mission) return '';
+    const bonus = entry.bonus ? `<p class="sv-lm-bonus"><em>Bonus:</em> ${escHtml(entry.bonus)}</p>` : '';
+    return `<div class="sv-mission-title">🎯 Basa raNhasi</div><p>${escHtml(entry.mission)}</p>${bonus}`;
   }
 
   // Phrase bank + mazwi button for one lesson, built from mazwi's lessons.json so the page and
@@ -121,14 +138,14 @@
       `<li><strong class="sv-pb-shona">${escHtml(w.shona)}</strong> <span class="sv-pb-eng">${escHtml(w.english)}</span></li>`).join('');
     const newList = items ? `<div class="sv-pb-title">Mazwi anhasi</div><ul class="sv-pb-list">${items}</ul>` : '';
     const tip = entry.tip
-      ? `<div class="sv-pb-section"><div class="sv-pb-label">💡 ${entry.type === 'sound' ? 'Sound pattern' : 'Grammar pattern'}</div><div class="sv-pb-tip">${rich(entry.tip)}</div></div>`
+      ? `<div class="sv-pb-section sv-pb-pattern"><div class="sv-pb-label">💡 ${entry.type === 'sound' ? 'Sound pattern' : 'Grammar pattern'}</div><div class="sv-pb-tip">${rich(entry.tip)}</div></div>`
       : '';
     const previous = (entry.recycled || []).length
       ? `<div class="sv-pb-section"><div class="sv-pb-label">Words from previous lessons</div><div class="sv-pb-recycled">${entry.recycled.map(escHtml).join(' · ')}</div></div>`
       : '';
     if (!newList && !tip && !previous) return '';
     const btn = items
-      ? `<a class="sv-mazwi-btn" href="https://mazwi.app/deck/${escHtml(slug)}" target="_blank" rel="noopener">🎴 Practice Today's Vocab in Mazwi</a>`
+      ? `<a class="sv-mazwi-btn" href="${escHtml(mazwiDeckUrl(slug))}" target="_blank" rel="noopener">${SV_ICON_MAZWI}<span>Practice Today's Vocab in Mazwi</span></a>`
       : '';
     return `${newList}${tip}${previous}${btn}`;
   }
@@ -139,8 +156,13 @@
     const entry = findLessonEntry(_lessonsManifest || [], { href: window.location.href, title: getLessonTitle() });
     const html = renderPhraseBankHtml(entry);
     let block = document.getElementById('sv-phrasebank');
-    if (!html) { if (block) block.remove(); return; }
-    if (block && block.getAttribute('data-zuva') === String(entry.zuva) && lessonBody.contains(block)) return;
+    if (!html) {
+      if (block) block.remove();
+      const m = document.getElementById('sv-lesson-mission');
+      if (m) m.remove();
+      return;
+    }
+    if (block && block.getAttribute('data-zuva') === String(entry.zuva) && lessonBody.contains(block)) { mountMissionCard(block, entry); return; }
     if (block) block.remove();
     block = document.createElement('div');
     block.id = 'sv-phrasebank';
@@ -151,6 +173,21 @@
     while (anchor && anchor.parentElement !== lessonBody) anchor = anchor.parentElement;
     if (anchor) anchor.after(block);
     else lessonBody.insertBefore(block, lessonBody.firstChild);
+    mountMissionCard(block, entry);
+  }
+
+  function mountMissionCard(afterEl, entry) {
+    const html = renderMissionHtml(entry);
+    let card = document.getElementById('sv-lesson-mission');
+    if (!html) { if (card) card.remove(); return; }
+    if (card && card.getAttribute('data-zuva') === String(entry.zuva) && card.previousElementSibling === afterEl) return;
+    if (card) card.remove();
+    card = document.createElement('div');
+    card.id = 'sv-lesson-mission';
+    card.className = 'sv-lesson-mission';
+    card.setAttribute('data-zuva', String(entry.zuva));
+    card.innerHTML = html;
+    afterEl.after(card);
   }
 
   function normalizePath(u) {
@@ -654,7 +691,7 @@
         ` : ''}
 
         ${zuva && zuva.new && zuva.new.length ? `
-          <a class="sv-celebration-mazwi" href="https://mazwi.app/deck/${escHtml(zuva.slug || 'zuva-' + String(zuva.zuva).padStart(2, '0'))}" target="_blank" rel="noopener">🎴 Practice today's words in mazwi</a>
+          <a class="sv-celebration-mazwi" href="${escHtml(mazwiDeckUrl(zuva.slug || 'zuva-' + String(zuva.zuva).padStart(2, '0')))}" target="_blank" rel="noopener">${SV_ICON_MAZWI}<span>Practice today's words in mazwi</span></a>
         ` : ''}
 
         <button type="button" id="sv-celebration-continue" style="width:100%; background:var(--sv-terracotta); color:#ffffff; border:none; padding:13px; border-radius:12px; font-weight:700; font-size:0.98rem; cursor:pointer;">
@@ -1254,6 +1291,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();

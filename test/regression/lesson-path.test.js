@@ -6,7 +6,7 @@ import { loadApp } from '../setup.js';
 
 const MANIFEST = [
   { zuva: 0, week: 0, type: 'onboarding', title: 'Mauya! Start Here', slug: 'zuva-00', recycled: [], tip: '', new: [] },
-  { zuva: 1, week: 1, type: 'lesson', title: 'Ehe, kwete, handei!', slug: 'zuva-01', recycled: [], tip: 'Shona loves doubling up',
+  { zuva: 1, week: 1, type: 'lesson', title: 'Ehe, kwete, handei!', slug: 'zuva-01', recycled: [], tip: 'Shona loves doubling up', mission: "Write today's words in your notebook.", bonus: 'Answer someone in Shona today.',
     new: [{ shona: 'ehe', english: 'yes' }, { shona: 'kwete', english: 'no' }] },
   { zuva: 2, week: 1, type: 'lesson', title: 'Hesi, mhoro, mhoroi', slug: 'zuva-02', recycled: ['ehe', 'kwete'], tip: '',
     new: [{ shona: 'hesi', english: 'hi (peer register)' }] },
@@ -83,6 +83,26 @@ describe('phrase bank', () => {
     mountPhraseBank(body); // re-mount (MutationObserver) must not re-render
     expect(document.getElementById('sv-phrasebank')).toBe(block);
     expect(document.querySelectorAll('#sv-phrasebank').length).toBe(1);
+  });
+
+  it('adds the Basa raNhasi card from the lesson data right after the phrase bank, once', () => {
+    const { mountPhraseBank, _setLessonsManifest } = loadApp({ fixture: 'full-lesson-page' });
+    _setLessonsManifest(MANIFEST);
+    document.querySelector('.fcom_lesson_title h1').textContent = 'Zuva 1 — Ehe, Kwete, Handei!';
+    const body = document.querySelector('.fcom_lesson_content');
+    mountPhraseBank(body);
+    mountPhraseBank(body);
+    const cards = document.querySelectorAll('#sv-lesson-mission');
+    expect(cards.length).toBe(1);
+    expect(cards[0].previousElementSibling.id).toBe('sv-phrasebank');
+    expect(cards[0].textContent).toContain('Basa raNhasi');
+    expect(cards[0].textContent).toContain('Bonus:');
+  });
+
+  it('escapes mission text', () => {
+    const { renderMissionHtml } = loadApp();
+    expect(renderMissionHtml({ zuva: 1, mission: '<script>x</script>' })).not.toContain('<script>');
+    expect(renderMissionHtml({ zuva: 1, mission: '' })).toBe('');
   });
 
   it('shows nothing on a page that is not a Zuva lesson', () => {

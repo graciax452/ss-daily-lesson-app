@@ -455,7 +455,10 @@ body.sv-toc-open .sv-toc-backdrop {
 .sv-pb-tip { font-size: 0.95rem; color: var(--sv-text-main); line-height: 1.5; }
 .sv-pb-recycled { font-size: 0.95rem; color: var(--sv-text-main); }
 .sv-mazwi-btn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   text-align: center;
   background: var(--sv-lime);
   color: #ffffff !important;
@@ -550,7 +553,10 @@ body.sv-toc-open .sv-toc-backdrop {
 
 /* Celebration modal: link to today's mazwi deck */
 .sv-celebration-mazwi {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   text-align: center;
   margin: 0 0 12px;
   padding: 11px;
@@ -562,3 +568,23 @@ body.sv-toc-open .sv-toc-backdrop {
   text-decoration: none !important;
 }
 .sv-celebration-mazwi:hover { background: var(--sv-cream-mute); }
+
+/* 💡 pattern panel — set apart from the word list */
+.sv-pb-pattern {
+  background: var(--sv-cream);
+  border-left: 4px solid var(--sv-orange-light);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+.sv-ic { flex-shrink: 0; }
+
+/* Basa raNhasi card built from lessons.json */
+.sv-lesson-mission {
+  background: var(--sv-mission-bg);
+  border: 1.5px solid var(--sv-mission-border);
+  border-radius: 16px;
+  padding: 18px 22px;
+  margin: 18px 0;
+}
+.sv-lesson-mission p { margin: 6px 0 0; line-height: 1.55; }
+.sv-mission-title { font-weight: 800; color: var(--sv-orange); }
