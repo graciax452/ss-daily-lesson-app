@@ -130,15 +130,16 @@
   }
 
   // Shona section names get their English meaning in Week 1, while learners are new to them.
-  function gloss(entry, english) {
-    return entry && entry.week <= 1 ? ` <em class="sv-gloss">(${english})</em>` : '';
+  // (Week 1 only) small English eyebrow above the Shona section title.
+  function eyebrow(entry, english) {
+    return entry && entry.week <= 1 ? `<div class="sv-eyebrow">${english}</div>` : '';
   }
 
   // Basa ranhasi card from lessons.json (Table A). '' when the lesson has no mission text.
   function renderMissionHtml(entry) {
     if (!entry || !entry.mission) return '';
     const bonus = entry.bonus ? `<p class="sv-lm-bonus"><em>Bonus:</em> ${escHtml(entry.bonus)}</p>` : '';
-    return `<div class="sv-mission-title">🎯 Basa ranhasi${gloss(entry, "today's mission")}</div><p>${escHtml(entry.mission)}</p>${bonus}`;
+    return `${eyebrow(entry, "today's mission")}<div class="sv-mission-title">🎯 Basa ranhasi</div><p>${escHtml(entry.mission)}</p>${bonus}`;
   }
 
   // Phrase bank + mazwi button for one lesson, built from mazwi's lessons.json so the page and
@@ -150,7 +151,7 @@
     const rich = (t) => escHtml(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     const items = (entry.new || []).map((w) =>
       `<li><strong class="sv-pb-shona">${escHtml(w.shona)}</strong> <span class="sv-pb-eng">${escHtml(w.english)}</span></li>`).join('');
-    const newList = items ? `<div class="sv-pb-title">Mazwi anhasi${gloss(entry, "today's words")}</div><ul class="sv-pb-list">${items}</ul>` : '';
+    const newList = items ? `${eyebrow(entry, "today's words")}<div class="sv-pb-title">Mazwi anhasi</div><ul class="sv-pb-list">${items}</ul>` : '';
     const tip = entry.tip
       ? `<div class="sv-pb-section sv-pb-pattern"><div class="sv-pb-label">💡 ${entry.type === 'sound' ? 'Sound pattern' : 'Grammar pattern'}</div><div class="sv-pb-tip">${rich(entry.tip)}</div></div>`
       : '';

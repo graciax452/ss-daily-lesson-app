@@ -654,3 +654,41 @@ body.sv-toc-open .sv-toc-backdrop {
 .sv-mazwi-card-arrow { color: var(--sv-orange); font-weight: 800; font-size: 1.1rem; }
 .sv-mazwi-mini-icon { width: 22px; height: 22px; border-radius: 6px; }
 .sv-gloss { font-weight: 400; font-style: italic; color: var(--sv-text-muted); font-size: 0.85em; }
+
+/* ── Phrase bank typography pass (2026-09-30): clearer title, calmer weights ── */
+.sv-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sv-orange);
+  margin-bottom: 2px;
+}
+.sv-phrasebank .sv-pb-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 12px;
+}
+/* two tidy columns, no bullets (FluentCommunity's own list styles add them back) */
+.sv-phrasebank .sv-pb-list {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 0 18px !important;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 16px;
+  row-gap: 6px;
+}
+.sv-phrasebank .sv-pb-list li {
+  display: contents;
+  list-style: none !important;
+}
+.sv-phrasebank .sv-pb-list li::before,
+.sv-phrasebank .sv-pb-list li::marker { content: none; }
+.sv-phrasebank .sv-pb-shona { font-weight: 600; }
+.sv-phrasebank .sv-pb-label { font-size: 0.9rem; font-weight: 600; }
+.sv-phrasebank .sv-pb-tip strong,
+.sv-phrasebank .sv-pb-tip b { font-weight: 600; }
+.sv-lesson-mission .sv-mission-title { font-weight: 700; }
+.sv-mazwi-card-text strong { font-weight: 600; }
