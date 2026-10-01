@@ -120,6 +120,32 @@
     return 'https://mazwi.app/deck/' + encodeURIComponent(slug) + (here ? '?back=' + encodeURIComponent(here) : '');
   }
 
+  // Zuva numbers of lessons this member has completed (course data + the lessons manifest).
+  function completedZuvas(course, manifest) {
+    if (!course || !Array.isArray(course.lessons)) return [];
+    const done = new Set((course.completedIds || []).map(String));
+    const zs = course.lessons.filter((l) => done.has(String(l.id)))
+      .map((l) => findLessonEntry(manifest || [], { href: l.url, title: l.title }))
+      .filter((e) => e && e.zuva > 0)
+      .map((e) => e.zuva);
+    return [...new Set(zs)].sort((a, b) => a - b);
+  }
+
+  // Adds &done=<completed Zuvas> to a mazwi deck link so mazwi shows those lessons' words
+  // as already met (gold). Leaves the link alone when there's nothing to add.
+  function withDoneZuvas(href, zuvas) {
+    if (!zuvas || !zuvas.length || !String(href).startsWith('https://mazwi.app/deck/')) return href;
+    const clean = href.replace(/[?&]done=[^&#]*/, '');
+    return clean + (clean.includes('?') ? '&' : '?') + 'done=' + zuvas.join(',');
+  }
+
+  // Course data arrives after the links render, so the done list is added at click time.
+  let _courseData = null;
+  document.addEventListener('click', (ev) => {
+    const a = ev.target && ev.target.closest && ev.target.closest('a[href^="https://mazwi.app/deck/"]');
+    if (a && _courseData) a.href = withDoneZuvas(a.href, completedZuvas(_courseData, _lessonsManifest));
+  }, true);
+
   const MAZWI_ICON_URL = 'https://mazwi.app/icons/icon-192.png';
   function mazwiCardHtml(slug) {
     return `<a class="sv-mazwi-card" href="${escHtml(mazwiDeckUrl(slug))}" target="_blank" rel="noopener">`
@@ -244,6 +270,7 @@
   }
 
   function mountPhraseBank(lessonBody) {
+    if (!_courseData) getCourse().then((c) => { if (c) _courseData = c; });
     const entry = findLessonEntry(_lessonsManifest || [], { href: window.location.href, title: getLessonTitle() });
     const isOnboarding = !!(entry && entry.type === 'onboarding');
     const html = isOnboarding ? renderOnboardingHtml() : renderPhraseBankHtml(entry);
@@ -1384,6 +1411,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { completedZuvas, withDoneZuvas, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();
