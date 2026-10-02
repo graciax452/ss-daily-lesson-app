@@ -56,6 +56,14 @@ describe('findZuvaForUrl()', () => {
     expect(hit && hit.zuva).toBe(3);
   });
 
+  it('treats /lessons/day-1 and /lessons/day-1/view as the same lesson', () => {
+    const { findZuvaForUrl } = loadApp();
+    const L = [{ zuva: 1, week: 1, fc_url: 'https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-1/view' }];
+    expect(findZuvaForUrl(L, 'https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-1').zuva).toBe(1);
+    expect(findZuvaForUrl(L, 'https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-1/view/').zuva).toBe(1);
+    expect(findZuvaForUrl(L, 'https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-10/view')).toBeNull();
+  });
+
   it('returns null for pages not in the manifest, and never matches lessons without a link', () => {
     const { findZuvaForUrl } = loadApp();
     expect(findZuvaForUrl(LESSONS, 'https://speakshona.com/shonaverse/course/shona-lessons/lessons/other')).toBeNull();

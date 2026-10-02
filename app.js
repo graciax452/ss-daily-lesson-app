@@ -310,7 +310,8 @@
   }
 
   function normalizePath(u) {
-    try { return new URL(u, 'https://speakshona.com').pathname.replace(/\/+$/, '').toLowerCase(); }
+    // FluentCommunity serves a lesson at both /lessons/day-1 and /lessons/day-1/view
+    try { return new URL(u, 'https://speakshona.com').pathname.replace(/\/+$/, '').replace(/\/view$/i, '').toLowerCase(); }
     catch (e) { return ''; }
   }
   // The manifest entry whose fc_url is this page, or null.
