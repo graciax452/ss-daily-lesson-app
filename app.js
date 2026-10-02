@@ -146,6 +146,25 @@
     if (a && _courseData) a.href = withDoneZuvas(a.href, completedZuvas(_courseData, _lessonsManifest));
   }, true);
 
+  // iPad: the page's own scripts can turn the first tap on a link into a "hover", so mazwi
+  // needed two taps. A clean tap (no scroll) on a mazwi link opens it straight away.
+  let _mazwiTouch = null;
+  document.addEventListener('touchstart', (ev) => {
+    const a = ev.target && ev.target.closest && ev.target.closest('a[href^="https://mazwi.app/deck/"]');
+    const t = ev.touches && ev.touches[0];
+    _mazwiTouch = a && t && ev.touches.length === 1 ? { a, x: t.clientX, y: t.clientY } : null;
+  }, { capture: true, passive: true });
+  document.addEventListener('touchend', (ev) => {
+    const start = _mazwiTouch;
+    _mazwiTouch = null;
+    const t = ev.changedTouches && ev.changedTouches[0];
+    if (!start || !t || Math.abs(t.clientX - start.x) > 10 || Math.abs(t.clientY - start.y) > 10) return;
+    ev.preventDefault();
+    let href = start.a.href;
+    if (_courseData) href = withDoneZuvas(href, completedZuvas(_courseData, _lessonsManifest));
+    window.open(href, '_blank', 'noopener');
+  }, { capture: true, passive: false });
+
   const MAZWI_ICON_URL = 'https://mazwi.app/icons/icon-192.png';
   function mazwiCardHtml(slug) {
     return `<a class="sv-mazwi-card" href="${escHtml(mazwiDeckUrl(slug))}" target="_blank" rel="noopener">`
