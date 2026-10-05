@@ -4,6 +4,53 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InptdWhpbnNraG9maHZ5Y2xrcmJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MjA3NzEsImV4cCI6MjA5OTE5Njc3MX0.eRmLcHn2ywawr2AC_J4mPz3TrDxJVt0qnEMVc9mVSnI'; // <-- Replace with your key
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  // Verified identity (mazwi LAUNCH.md C3). The WordPress snippet prints a signed token for the
+  // logged-in member as window.MAZWI_MEMBER_TOKEN; mazwi's member-signin function turns it into
+  // a real Supabase login (the same account mazwi uses). Rows are then owned by user_id, and the
+  // database rules (docs/c3-rls.sql) only let signed-in members read or write.
+  const MEMBER_SIGNIN_URL = 'https://mazwi.app/.netlify/functions/member-signin';
+  let _authP = null;
+  let _uid = null;
+
+  function emailFromToken(token) {
+    try {
+      const payload = String(token || '').split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+      return String(JSON.parse(atob(payload)).e || '').toLowerCase() || null;
+    } catch (e) { return null; }
+  }
+
+  // Resolves to the signed-in user's id, or null (not a member / not signed in). Every database
+  // call awaits this first. A failed attempt is retried on the next call.
+  function ensureAuth() {
+    if (!_authP) {
+      _authP = (async () => {
+        try {
+          const auth = supabase.auth;
+          if (!auth) return null;
+          const token = window.MAZWI_MEMBER_TOKEN;
+          const tokenEmail = emailFromToken(token);
+          const { data } = await auth.getSession();
+          const sess = data && data.session;
+          if (sess && sess.user && (!tokenEmail || String(sess.user.email).toLowerCase() === tokenEmail)) {
+            _uid = sess.user.id;
+            return _uid;
+          }
+          if (!token) return null;
+          const res = await fetch(MEMBER_SIGNIN_URL, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+          });
+          if (!res.ok) return null;
+          const r = await res.json();
+          const { data: v, error } = await auth.verifyOtp({ token_hash: r.token_hash, type: r.type });
+          if (error || !v || !v.user) return null;
+          _uid = v.user.id;
+          return _uid;
+        } catch (e) { return null; }
+      })().then((id) => { if (!id) _authP = null; return id; });
+    }
+    return _authP;
+  }
+
   // Everything members type (names, memos, replies) and every URL from the database is
   // untrusted: escape before it goes into innerHTML so one member can't inject markup or
   // scripts into everyone else's lesson page.
@@ -412,6 +459,7 @@
     list.innerHTML = '<div style="text-align:center; padding:20px; color:#A8A29E;">Loading submissions...</div>';
 
     const currentUser = getUserInfo();
+    const uid = await ensureAuth();
 
     const { data: missions, error } = await supabase
       .from('lesson_missions')
@@ -419,6 +467,7 @@
         *,
         lesson_mission_replies (
           id,
+          user_id,
           user_name,
           user_avatar,
           reply_text,
@@ -443,7 +492,7 @@
       const cleanAuthor = (m.user_name || 'Learner').replace(/[()[\]{}<>]/g, '').trim();
       const initial = cleanAuthor ? cleanAuthor.charAt(0).toUpperCase() : 'S';
       
-      const canDelete = currentUser.isAdmin || (currentUser.name && currentUser.name === cleanAuthor);
+      const canDelete = currentUser.isAdmin || (!!uid && m.user_id === uid);
 
       return `
         <div class="sv-mission-card" style="background:#ffffff; border:1px solid var(--sv-border); border-radius:14px; padding:14px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
@@ -486,7 +535,7 @@
             <div class="sv-replies-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">
               ${replies.map(r => {
                 const cleanReplyAuthor = (r.user_name || 'Learner').replace(/[()[\]{}<>]/g, '').trim();
-                const canDeleteReply = currentUser.isAdmin || (currentUser.name && currentUser.name === cleanReplyAuthor);
+                const canDeleteReply = currentUser.isAdmin || (!!uid && r.user_id === uid);
                 return `
                   <div style="background:#F8FAFC; border-radius:8px; padding:8px 10px; font-size:0.83rem; display:flex; justify-content:space-between; align-items:center;">
                     <div>
@@ -535,6 +584,7 @@
         btn.textContent = '...';
 
         const user = getUserInfo();
+        await ensureAuth();
         const { error } = await supabase.from('lesson_mission_replies').insert([{
           mission_id: missionId,
           user_name: user.name,
@@ -560,6 +610,7 @@
         const missionId = btn.getAttribute('data-mission-id');
         btn.disabled = true;
 
+        await ensureAuth();
         const { error } = await supabase
           .from('lesson_missions')
           .delete()
@@ -581,6 +632,7 @@
         const replyId = btn.getAttribute('data-reply-id');
         btn.disabled = true;
 
+        await ensureAuth();
         const { error } = await supabase
           .from('lesson_mission_replies')
           .delete()
@@ -686,10 +738,11 @@
     console.log('[SV celebrate] celebrateLessonCompletion() running for lesson', lessonId);
     const user = getUserInfo();
     console.log('[SV celebrate] user:', user);
+    const uid = await ensureAuth();
 
     const { error: upsertErr } = await supabase
       .from('lesson_completions')
-      .upsert([{ user_name: user.name, lesson_id: lessonId }], { onConflict: 'user_name,lesson_id' });
+      .upsert([{ user_id: uid, user_name: user.name, lesson_id: lessonId }], { onConflict: 'user_id,lesson_id' });
 
     if (upsertErr) {
       console.error('[SV celebrate] upsert into lesson_completions failed:', upsertErr.message, upsertErr);
@@ -700,7 +753,7 @@
     const { data: completions, error: selectErr } = await supabase
       .from('lesson_completions')
       .select('completed_at')
-      .eq('user_name', user.name);
+      .eq('user_id', uid);
 
     if (selectErr) {
       console.error('[SV celebrate] could not read back completions for streak calc:', selectErr.message, selectErr);
@@ -723,7 +776,7 @@
       .from('lesson_missions')
       .select('id')
       .eq('lesson_id', lessonId)
-      .eq('user_name', user.name);
+      .eq('user_id', uid);
 
     if (missionsErr) {
       console.error('[SV celebrate] could not check for existing mission:', missionsErr.message, missionsErr);
@@ -1082,6 +1135,7 @@
         btn.textContent = 'Uploading...';
 
         try {
+          await ensureAuth();
           let mediaUrl = '';
           const isVideo = stagedFile?.type.startsWith('video/');
 
@@ -1253,6 +1307,7 @@
   }
 
   async function renderLatestMissions(box) {
+    await ensureAuth();
     const [course, , res] = await Promise.all([
       getCourse(),
       loadLessonsManifest(),
@@ -1296,11 +1351,11 @@
   async function renderFeedDashboardContent(banner) {
     banner.innerHTML = '<div style="text-align:center; padding:20px 0; color:var(--sv-text-muted);">Loading your progress...</div>';
 
-    const user = getUserInfo();
+    const uid = await ensureAuth();
     const [course, , completionsRes] = await Promise.all([
       getCourse(),
       loadLessonsManifest(),
-      supabase.from('lesson_completions').select('lesson_id, completed_at').eq('user_name', user.name),
+      supabase.from('lesson_completions').select('lesson_id, completed_at').eq('user_id', uid),
     ]);
     const { data: completions, error } = completionsRes;
 
@@ -1446,6 +1501,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();

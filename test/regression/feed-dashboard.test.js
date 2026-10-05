@@ -6,10 +6,10 @@ import { loadApp } from '../setup.js';
 // insert our banner into, as the first child, ahead of FluentCommunity's own
 // welcome box / post composer / post list.
 
+// The sign-in step (ensureAuth) adds a few async hops before the dashboard renders, so flush a
+// whole macrotask rather than counting microtask ticks.
 async function waitForMicrotasks() {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 describe('Feed page dashboard banner (mounts into the real portal shell, not a separate page)', () => {

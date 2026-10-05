@@ -25,6 +25,7 @@ function createSupabaseMock(overrides = {}) {
   const selectResultByTable = overrides.selectResultByTable || {};
 
   return {
+    auth: overrides.auth,
     from: (table) => {
       const selectResult = selectResultByTable[table] || defaultSelectResult;
       // Real Supabase query builders are thenable at every step, not just

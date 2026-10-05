@@ -76,11 +76,16 @@
 
     root.innerHTML = '<div style="text-align:center; padding:40px 0; color:var(--sv-text-muted, #78716C);">Loading your progress...</div>';
 
-    const user = getUserInfo();
+    // The signed-in member (app.js signs them in and the login is shared in this browser).
+    let uid = null;
+    try {
+      const { data: sess } = supabase.auth ? await supabase.auth.getSession() : { data: null };
+      uid = sess && sess.session && sess.session.user ? sess.session.user.id : null;
+    } catch (e) { uid = null; }
     const { data: completions, error } = await supabase
       .from('lesson_completions')
       .select('lesson_id, completed_at')
-      .eq('user_name', user.name);
+      .eq('user_id', uid);
 
     if (error) {
       root.innerHTML = `<div style="text-align:center; padding:40px 0; color:var(--sv-red, #EB5555);">Could not load your progress: ${error.message}</div>`;
