@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { loadApp } from '../setup.js';
 
-const { completedZuvas, withDoneZuvas } = loadApp();
+const { completedZuvas, withDoneZuvas, withMemberToken } = loadApp();
 
 const manifest = [
   { zuva: 0, type: 'onboarding', title: 'Start here', fc_url: 'https://speakshona.com/shonaverse/course/shona-lessons/lessons/start' },
@@ -35,5 +35,22 @@ describe('withDoneZuvas', () => {
   it('leaves other links and empty lists alone', () => {
     expect(withDoneZuvas('https://evil.com/deck/zuva-03', [1])).toBe('https://evil.com/deck/zuva-03');
     expect(withDoneZuvas(base, [])).toBe(base);
+  });
+});
+
+// mazwi LAUNCH.md C1 — the member's signed token rides after '#', never in the query
+describe('withMemberToken', () => {
+  const base = 'https://mazwi.app/deck/zuva-03?back=https%3A%2F%2Fspeakshona.com%2Fx';
+  it('adds the token after # and replaces an older one', () => {
+    expect(withMemberToken(base, 'abc.DEF-_1')).toBe(base + '#m=abc.DEF-_1');
+    expect(withMemberToken(base + '#m=old.tok', 'new.tok')).toBe(base + '#m=new.tok');
+  });
+  it('leaves non-mazwi links alone and drops odd-looking tokens', () => {
+    expect(withMemberToken('https://evil.com/deck/zuva-03', 'a.b')).toBe('https://evil.com/deck/zuva-03');
+    expect(withMemberToken(base, '"><script>')).toBe(base);
+    expect(withMemberToken(base, undefined)).toBe(base);
+  });
+  it('the done list still goes in the query when a token is already there', () => {
+    expect(withDoneZuvas(base + '#m=a.b', [1, 2])).toBe(base + '&done=1,2#m=a.b');
   });
 });

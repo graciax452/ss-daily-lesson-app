@@ -135,15 +135,32 @@
   // as already met (gold). Leaves the link alone when there's nothing to add.
   function withDoneZuvas(href, zuvas) {
     if (!zuvas || !zuvas.length || !String(href).startsWith('https://mazwi.app/deck/')) return href;
-    const clean = href.replace(/[?&]done=[^&#]*/, '');
-    return clean + (clean.includes('?') ? '&' : '?') + 'done=' + zuvas.join(',');
+    const hashAt = href.indexOf('#');
+    const hash = hashAt === -1 ? '' : href.slice(hashAt);
+    const clean = (hashAt === -1 ? href : href.slice(0, hashAt)).replace(/[?&]done=[^&#]*/, '');
+    return clean + (clean.includes('?') ? '&' : '?') + 'done=' + zuvas.join(',') + hash;
+  }
+
+  // Member sign-in for mazwi (mazwi LAUNCH.md C1): a WordPress snippet prints a signed
+  // token for the logged-in member as window.MAZWI_MEMBER_TOKEN. It rides after '#', so it
+  // never reaches a server or a referrer, and mazwi wipes it from the address on arrival.
+  function withMemberToken(href, token) {
+    if (!String(href).startsWith('https://mazwi.app/deck/')) return href;
+    const base = String(href).split('#')[0];
+    return token && /^[A-Za-z0-9_\-.]+$/.test(token) ? base + '#m=' + token : base;
+  }
+
+  // The link as it should leave this page: completed Zuvas + this member's sign-in token.
+  function finalMazwiHref(href) {
+    const withDone = _courseData ? withDoneZuvas(href, completedZuvas(_courseData, _lessonsManifest)) : href;
+    return withMemberToken(withDone, window.MAZWI_MEMBER_TOKEN);
   }
 
   // Course data arrives after the links render, so the done list is added at click time.
   let _courseData = null;
   document.addEventListener('click', (ev) => {
     const a = ev.target && ev.target.closest && ev.target.closest('a[href^="https://mazwi.app/deck/"]');
-    if (a && _courseData) a.href = withDoneZuvas(a.href, completedZuvas(_courseData, _lessonsManifest));
+    if (a) a.href = finalMazwiHref(a.href);
   }, true);
 
   // iPad: the page's own scripts can turn the first tap on a link into a "hover", so mazwi
@@ -160,9 +177,7 @@
     const t = ev.changedTouches && ev.changedTouches[0];
     if (!start || !t || Math.abs(t.clientX - start.x) > 10 || Math.abs(t.clientY - start.y) > 10) return;
     ev.preventDefault();
-    let href = start.a.href;
-    if (_courseData) href = withDoneZuvas(href, completedZuvas(_courseData, _lessonsManifest));
-    window.open(href, '_blank', 'noopener');
+    window.open(finalMazwiHref(start.a.href), '_blank', 'noopener');
   }, { capture: true, passive: false });
 
   const MAZWI_ICON_URL = 'https://mazwi.app/icons/icon-192.png';
@@ -1431,6 +1446,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { completedZuvas, withDoneZuvas, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();
