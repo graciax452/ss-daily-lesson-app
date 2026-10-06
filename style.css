@@ -802,3 +802,11 @@ body.sv-toc-open .sv-toc-backdrop {
 .sv-plans-toggle { display: block; margin: 0 auto 8px; border: 0; background: transparent; font-family: inherit; font-size: 0.9rem; color: var(--sv-text-muted); text-decoration: underline; cursor: pointer; }
 .sv-plans-more[hidden] { display: none; }
 .sv-dash-opening { opacity: 0.7; pointer-events: none; }
+
+/* Locked lesson: one calm line instead of a paywall */
+#sv-locker { max-width: 460px; margin: 40px auto; padding: 0 16px; text-align: center; }
+.sv-locker-title { font-size: 1.5rem; font-weight: 800; color: var(--sv-text-main); }
+.sv-locker-sub { color: var(--sv-text-muted); margin: 6px 0 18px; }
+.sv-locker-btn { display: inline-block; padding: 12px 28px; border-radius: 999px; background: var(--sv-orange); color: #ffffff; font-weight: 700; text-decoration: none; }
+.sv-locker-login { margin-top: 14px; color: var(--sv-text-muted); font-size: 0.9rem; }
+.sv-locker-login a { color: var(--sv-orange); font-weight: 700; }

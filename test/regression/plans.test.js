@@ -101,3 +101,19 @@ describe('Daily Lessons sales page', () => {
     expect(document.getElementById('sv-plans')).toBeNull();
   });
 });
+
+describe('Locked lesson (a lesson the person does not have yet)', () => {
+  const locked = '<p class="fcom_lesson_number">Lesson 4 of 5</p><div class="fcom_locked_container"><div class="fcom_locker"><h1>This lesson is currently locked</h1><p>Please enroll in this course to access this lesson</p><a href="https://speakshona.com/shonaverse/course/shona-lessons/lessons" class="el-button">Back to Course</a></div></div>';
+
+  it('replaces the native "currently locked" box with one calm line and a plans button (native content hidden, not removed)', () => {
+    const { mountUI } = loadApp({ bodyAttrs: { 'data-route': 'view_lesson' } });
+    document.body.insertAdjacentHTML('beforeend', locked);
+    mountUI();
+    mountUI();
+    expect(document.querySelectorAll('#sv-locker').length).toBe(1);
+    expect(document.querySelector('#sv-locker .sv-locker-title').textContent).toBe('Ready for the next lesson?');
+    expect(document.querySelector('#sv-locker .sv-locker-btn').getAttribute('href')).toContain('/lessons?plans=1');
+    expect(document.querySelector('.fcom_locker h1').style.display).toBe('none');
+    expect(document.getElementById('sv-locker').textContent).not.toMatch(/d+ lessons|free/i);
+  });
+});

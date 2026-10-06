@@ -928,6 +928,7 @@
     mountSidebar();
     const route = document.body.getAttribute('data-route');
     if (route === 'view_lesson') {
+      mountLockedLesson();
       mountLessonUI();
     } else if (route === 'all_feeds') {
       mountFeedDashboard();
@@ -1386,6 +1387,24 @@
     }).join('');
   }
 
+  // A lesson the person does not have yet: FluentCommunity prints "This lesson is currently locked".
+  // Swap that for one calm line and a single button; the plans stay a click away, never in the way.
+  function mountLockedLesson() {
+    const locker = document.querySelector('.fcom_locked_container .fcom_locker');
+    if (!locker) return;
+    Array.from(locker.children).forEach((child) => { if (child.id !== 'sv-locker') child.style.display = 'none'; });
+    if (document.getElementById('sv-locker')) return;
+    const login = document.querySelector('.fcom_login_btn');
+    const loginHref = login ? login.getAttribute('href') : '';
+    const box = document.createElement('div');
+    box.id = 'sv-locker';
+    box.innerHTML = '<div class="sv-locker-title">Ready for the next lesson?</div>'
+      + '<div class="sv-locker-sub">The rest of Daily Shona Lessons is for members.</div>'
+      + '<a class="sv-locker-btn" href="' + FEED_DASHBOARD_COURSE_URL + '?plans=1">See membership plans</a>'
+      + (safeUrl(loginHref) ? '<div class="sv-locker-login">Already a member? <a href="' + safeUrl(loginHref) + '">Log in</a></div>' : '');
+    locker.appendChild(box);
+  }
+
   function mountPaywall() {
     const lock = document.querySelector('.fcom_single_layout[course_slug="shona-lessons"] .space_default_lockscreen');
     if (!lock) return;
@@ -1405,14 +1424,15 @@
       box = document.createElement('div');
       box.id = 'sv-plans';
       box.setAttribute('data-period', 'year');
+      const plansWanted = /[?&]plans=1/.test(window.location.search || ''); // arrived from a locked lesson
       const freeStart = safeUrl(loginHref)
         ? '<div class="sv-free"><div class="sv-free-title">Start learning Shona</div>'
           + '<div class="sv-free-sub">Make a free account and begin with your first lesson.</div>'
           + '<a class="sv-free-btn" href="' + safeUrl(loginHref) + '">Start your first lesson</a></div>'
-          + '<button type="button" class="sv-plans-toggle" aria-expanded="false">Membership plans</button>'
+          + '<button type="button" class="sv-plans-toggle" aria-expanded="' + (plansWanted ? 'true' : 'false') + '">Membership plans</button>'
         : '';
       box.innerHTML = freeStart
-        + '<div class="sv-plans-more"' + (freeStart ? ' hidden' : '') + '>'
+        + '<div class="sv-plans-more"' + (freeStart && !plansWanted ? ' hidden' : '') + '>'
         + '<div class="sv-plans-head"><div class="sv-plans-title">Join Daily Lessons</div>'
         + '<div class="sv-plans-sub">A short Shona lesson every day. Pick a plan.</div></div>'
         + '<div class="sv-plans-bill">Choose how you pay</div>'
