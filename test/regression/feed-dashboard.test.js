@@ -13,33 +13,62 @@ async function waitForMicrotasks() {
 }
 
 describe('Feed page dashboard banner (mounts into the real portal shell, not a separate page)', () => {
-  it('inserts the banner as the first child of .fcom_feed_box', async () => {
+  it('puts the Home | Feed switch first, then the banner, ahead of the native feed content', async () => {
     const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
     mountUI();
     await waitForMicrotasks();
 
     const feedBox = document.querySelector('.fcom_feed_box');
-    expect(feedBox.firstElementChild.id).toBe('sv-feed-dashboard');
+    expect(feedBox.firstElementChild.id).toBe('sv-home-switch');
+    expect(feedBox.children[1].id).toBe('sv-feed-dashboard');
   });
 
-  it('hides only the native welcome box; the post composer and post list stay visible under the dashboard', async () => {
+  it('Home view shows only the dashboard (native feed hidden, not removed); the Feed view shows the original feed', async () => {
     const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
     mountUI();
     await waitForMicrotasks();
 
     const welcomeBox = document.querySelector('.fcom_welcome_box');
     const composer = document.querySelector('.create_status_holder');
-    const postList = document.querySelector('.all_feeds_holder');
+    const timeline = document.querySelector('.all_feeds_holder').closest('.fcom_feed_style_timeline');
+    const banner = document.getElementById('sv-feed-dashboard');
 
-    // Still present in the DOM - never removed, so Vue can keep managing them...
+    // Home view: native content still in the DOM (Vue keeps managing it) but hidden
     expect(welcomeBox).not.toBeNull();
-    expect(composer).not.toBeNull();
-    expect(postList).not.toBeNull();
-
-    // ...the welcome box is hidden, the community feed itself is shown below our dashboard.
     expect(welcomeBox.style.display).toBe('none');
+    expect(composer.style.display).toBe('none');
+    expect(timeline.style.display).toBe('none');
+    expect(banner.style.display).not.toBe('none');
+
+    // Feed view: the original feed as it was before, dashboard hidden
+    document.querySelector('#sv-home-switch [data-view="feed"]').click();
+    expect(welcomeBox.style.display).not.toBe('none');
     expect(composer.style.display).not.toBe('none');
-    expect(postList.closest('.fcom_feed_style_timeline').style.display).not.toBe('none');
+    expect(timeline.style.display).not.toBe('none');
+    expect(banner.style.display).toBe('none');
+
+    // ...and back
+    document.querySelector('#sv-home-switch [data-view="home"]').click();
+    expect(composer.style.display).toBe('none');
+    expect(banner.style.display).not.toBe('none');
+  });
+
+  it('opens straight on the Feed view when the Feed tab on a space page just set the flag', async () => {
+    sessionStorage.setItem('sv_open_feed', String(Date.now()));
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    mountUI();
+    await waitForMicrotasks();
+    expect(document.querySelector('.fcom_feed_box').getAttribute('data-sv-view')).toBe('feed');
+    expect(document.querySelector('.create_status_holder').style.display).not.toBe('none');
+    expect(sessionStorage.getItem('sv_open_feed')).toBeNull(); // used once
+  });
+
+  it('ignores an old flag (a stale click must not hijack a later visit to Home)', async () => {
+    sessionStorage.setItem('sv_open_feed', String(Date.now() - 60000));
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    mountUI();
+    await waitForMicrotasks();
+    expect(document.querySelector('.fcom_feed_box').getAttribute('data-sv-view')).toBe('home');
   });
 
   it('keeps native content hidden across repeated mountUI() calls, even if something reappears in the DOM', async () => {

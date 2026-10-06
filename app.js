@@ -940,7 +940,7 @@
   // a tab with a path instead goes to that portal page — "Feed" is the all-community feed, which
   // lives on Home, under the dashboard).
   const SPACE_TABS = [
-    { label: 'Feed', path: '/feed' },
+    { label: 'Feed', path: '/feed', openFeed: true },
     { slug: 'general', label: 'Lounge' },
     { slug: 'say-hello', label: 'Ndeipi! Intros' },
     { slug: 'rules', label: 'Rules' },
@@ -951,31 +951,36 @@
     return m ? m[1] : '';
   }
 
-  // Inserts the tab row between a space's title bar and its posts. Idempotent: re-running it
+  // Inserts the tab row above a space's title bar. Idempotent: re-running it
   // (the MutationObserver does, often) leaves an up-to-date bar alone, and puts it back if Vue
   // re-rendered the page around it.
   function mountSpaceTabs() {
     const slug = getSpaceSlug();
     if (!slug || !SPACE_TABS.some((t) => t.slug === slug)) return;
     const layout = document.querySelector('.fhr_content_layout');
-    const body = layout && layout.querySelector('.fhr_content_layout_body');
-    if (!layout || !body) return;
+    const header = layout && layout.querySelector('.fhr_content_layout_header');
+    if (!layout || !header) return;
 
     let bar = document.getElementById('sv-space-tabs');
     if (!bar) {
       bar = document.createElement('nav');
       bar.id = 'sv-space-tabs';
       bar.setAttribute('aria-label', 'Community spaces');
+      bar.addEventListener('click', (e) => {
+        if (e.target.closest && e.target.closest('[data-open-feed]')) {
+          try { sessionStorage.setItem(OPEN_FEED_KEY, String(Date.now())); } catch (err) { /* private mode: lands on Home instead */ }
+        }
+      });
     }
     if (bar.getAttribute('data-slug') !== slug) {
       const a = window.fluentComAdmin;
       const portal = String((a && a.portal_url) || 'https://speakshona.com/shonaverse').replace(/\/+$/, '');
       bar.setAttribute('data-slug', slug);
       bar.innerHTML = SPACE_TABS.map((t) =>
-        `<a class="sv-space-tab${t.slug === slug ? ' sv-space-tab-active' : ''}" href="${safeUrl(portal + (t.path || '/space/' + t.slug + '/home'))}"${t.slug === slug ? ' aria-current="page"' : ''}>${escHtml(t.label)}</a>`
+        `<a class="sv-space-tab${t.slug === slug ? ' sv-space-tab-active' : ''}" href="${safeUrl(portal + (t.path || '/space/' + t.slug + '/home'))}"${t.slug === slug ? ' aria-current="page"' : ''}${t.openFeed ? ' data-open-feed="1"' : ''}>${escHtml(t.label)}</a>`
       ).join('');
     }
-    if (bar.nextElementSibling !== body || bar.parentNode !== layout) layout.insertBefore(bar, body);
+    if (bar.nextElementSibling !== header || bar.parentNode !== layout) layout.insertBefore(bar, header);
   }
 
   function mountLessonUI() {
@@ -1366,27 +1371,66 @@
     list.innerHTML = renderLatestMissionsHtml(res.data || [], lessonsById);
   }
 
+  // Home has two views: our dashboard (Home) and the original community feed (Feed). The Feed tab on
+  // the space pages sets a short-lived flag so arriving from there opens the Feed view directly.
+  const OPEN_FEED_KEY = 'sv_open_feed';
+  function takeOpenFeedFlag() {
+    try {
+      const t = Number(sessionStorage.getItem(OPEN_FEED_KEY));
+      sessionStorage.removeItem(OPEN_FEED_KEY);
+      return !!t && Date.now() - t < 20000;
+    } catch (e) { return false; }
+  }
+
+  // Shows one view and hides the other. Native nodes are only hidden (display:none), never removed,
+  // so Vue can keep managing them; runs on every mount so a Vue re-render can't un-hide them.
+  function applyHomeView(feedBox) {
+    const view = feedBox.getAttribute('data-sv-view') === 'feed' ? 'feed' : 'home';
+    const banner = document.getElementById('sv-feed-dashboard');
+    const sw = document.getElementById('sv-home-switch');
+    Array.from(feedBox.children).forEach((child) => {
+      if (child === banner || child === sw) return;
+      child.style.display = view === 'feed' ? '' : 'none';
+    });
+    if (banner) banner.style.display = view === 'home' ? '' : 'none';
+    if (sw) {
+      Array.from(sw.querySelectorAll('[data-view]')).forEach((btn) => {
+        const on = btn.getAttribute('data-view') === view;
+        btn.classList.toggle('sv-space-tab-active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }
+  }
+
   function mountFeedDashboard() {
     mountLatestMissions();
     const feedBox = document.querySelector('.fcom_feed_box');
     if (!feedBox) return;
 
+    let sw = document.getElementById('sv-home-switch');
+    if (!sw) {
+      sw = document.createElement('nav');
+      sw.id = 'sv-home-switch';
+      sw.setAttribute('aria-label', 'Home views');
+      sw.innerHTML = '<button type="button" class="sv-space-tab" data-view="home">Home</button><button type="button" class="sv-space-tab" data-view="feed">Feed</button>';
+      sw.addEventListener('click', (e) => {
+        const btn = e.target.closest && e.target.closest('[data-view]');
+        if (!btn) return;
+        feedBox.setAttribute('data-sv-view', btn.getAttribute('data-view'));
+        applyHomeView(feedBox);
+      });
+      feedBox.insertBefore(sw, feedBox.firstChild);
+      feedBox.setAttribute('data-sv-view', takeOpenFeedFlag() ? 'feed' : 'home');
+    }
+
     let banner = document.getElementById('sv-feed-dashboard');
-
-    // Our dashboard sits first; the community feed (post composer + posts) shows below it.
-    // Only the native welcome box is hidden - every time this runs, so it stays hidden if Vue
-    // re-shows it. Hidden via display:none, never removed, so Vue can keep managing it.
-    Array.from(feedBox.children).forEach((child) => {
-      if (child !== banner && child.classList.contains('fcom_welcome_box')) child.style.display = 'none';
-    });
-
-    if (banner) return; // content already rendered this session
-
-    banner = document.createElement('div');
-    banner.id = 'sv-feed-dashboard';
-    feedBox.insertBefore(banner, feedBox.firstChild);
-
-    renderFeedDashboardContent(banner);
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'sv-feed-dashboard';
+      feedBox.insertBefore(banner, sw.nextSibling);
+      renderFeedDashboardContent(banner);
+    }
+    applyHomeView(feedBox);
   }
 
   async function renderFeedDashboardContent(banner) {
