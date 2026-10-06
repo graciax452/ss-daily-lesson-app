@@ -936,13 +936,10 @@
   }
 
   // The community spaces as one row of tabs, so the sidebar only needs a single "Community" link.
-  // Edit this list to add, remove or reorder tabs (slug = the /space/<slug>/ part of the address;
-  // a tab with a path instead goes to that portal page — "Feed" is the all-community feed, which
-  // lives on Home, under the dashboard).
+  // Edit this list to add, remove or reorder tabs (slug = the /space/<slug>/ part of the address).
   const SPACE_TABS = [
-    { label: 'Feed', path: '/feed', openFeed: true },
-    { slug: 'general', label: 'Lounge' },
     { slug: 'say-hello', label: 'Ndeipi! Intros' },
+    { slug: 'general', label: 'Lounge' },
     { slug: 'rules', label: 'Rules' },
   ];
 
@@ -966,18 +963,13 @@
       bar = document.createElement('nav');
       bar.id = 'sv-space-tabs';
       bar.setAttribute('aria-label', 'Community spaces');
-      bar.addEventListener('click', (e) => {
-        if (e.target.closest && e.target.closest('[data-open-feed]')) {
-          try { sessionStorage.setItem(OPEN_FEED_KEY, String(Date.now())); } catch (err) { /* private mode: lands on Home instead */ }
-        }
-      });
     }
     if (bar.getAttribute('data-slug') !== slug) {
       const a = window.fluentComAdmin;
       const portal = String((a && a.portal_url) || 'https://speakshona.com/shonaverse').replace(/\/+$/, '');
       bar.setAttribute('data-slug', slug);
       bar.innerHTML = SPACE_TABS.map((t) =>
-        `<a class="sv-space-tab${t.slug === slug ? ' sv-space-tab-active' : ''}" href="${safeUrl(portal + (t.path || '/space/' + t.slug + '/home'))}"${t.slug === slug ? ' aria-current="page"' : ''}${t.openFeed ? ' data-open-feed="1"' : ''}>${escHtml(t.label)}</a>`
+        `<a class="sv-space-tab${t.slug === slug ? ' sv-space-tab-active' : ''}" href="${safeUrl(portal + '/space/' + t.slug + '/home')}"${t.slug === slug ? ' aria-current="page"' : ''}>${escHtml(t.label)}</a>`
       ).join('');
     }
     if (bar.nextElementSibling !== header || bar.parentNode !== layout) layout.insertBefore(bar, header);
@@ -1255,6 +1247,7 @@
       title: l.title || '',
       slug: l.slug || '',
       section: sec.title || '',
+      status: l.status || '',
       url: `${portal}/course/${course.slug || COURSE_SLUG}/lessons/${l.slug}`,
     })));
   }
@@ -1293,6 +1286,30 @@
   // lesson_completions row can't inflate the count.
   function getTotalCompletedCount(completedLessonIds) {
     return new Set(completedLessonIds.map(String)).size;
+  }
+
+  function localDay(d = new Date()) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // A lesson is open to learners once FluentCommunity has published it (when it says so) and its
+  // publish date in mazwi's lesson list has arrived. Onboarding has no date and is always open.
+  function isLessonPublished(lesson, manifest) {
+    if (lesson.status && lesson.status !== 'published') return false;
+    const e = findLessonEntry(manifest || [], { href: lesson.url, title: lesson.title });
+    if (e && e.type !== 'onboarding' && e.publish_date && e.publish_date > localDay()) return false;
+    return true;
+  }
+
+  // "Your next lesson arrives tomorrow." / on a date / "New lessons are coming soon."
+  function nextArrivalText(manifest) {
+    const today = localDay();
+    const dates = (manifest || []).filter((l) => l.type !== 'onboarding' && l.publish_date && l.publish_date > today).map((l) => l.publish_date).sort();
+    if (!dates.length) return 'New lessons are coming soon.';
+    const t = new Date(); t.setDate(t.getDate() + 1);
+    if (dates[0] === localDay(t)) return 'Your next lesson arrives tomorrow.';
+    const when = new Date(dates[0] + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    return 'Your next lesson arrives ' + when + '.';
   }
 
   // First manifest entry the learner hasn't completed yet, in manifest order.
@@ -1371,77 +1388,37 @@
     list.innerHTML = renderLatestMissionsHtml(res.data || [], lessonsById);
   }
 
-  // Home has two views: our dashboard (Home) and the original community feed (Feed). The Feed tab on
-  // the space pages sets a short-lived flag so arriving from there opens the Feed view directly.
-  const OPEN_FEED_KEY = 'sv_open_feed';
-  function takeOpenFeedFlag() {
-    try {
-      const t = Number(sessionStorage.getItem(OPEN_FEED_KEY));
-      sessionStorage.removeItem(OPEN_FEED_KEY);
-      return !!t && Date.now() - t < 20000;
-    } catch (e) { return false; }
-  }
-
-  // Shows one view and hides the other. Native nodes are only hidden (display:none), never removed,
-  // so Vue can keep managing them; runs on every mount so a Vue re-render can't un-hide them.
-  function applyHomeView(feedBox) {
-    const view = feedBox.getAttribute('data-sv-view') === 'feed' ? 'feed' : 'home';
-    const banner = document.getElementById('sv-feed-dashboard');
-    const sw = document.getElementById('sv-home-switch');
-    Array.from(feedBox.children).forEach((child) => {
-      if (child === banner || child === sw) return;
-      child.style.display = view === 'feed' ? '' : 'none';
-    });
-    if (banner) banner.style.display = view === 'home' ? '' : 'none';
-    if (sw) {
-      Array.from(sw.querySelectorAll('[data-view]')).forEach((btn) => {
-        const on = btn.getAttribute('data-view') === view;
-        btn.classList.toggle('sv-space-tab-active', on);
-        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      });
-    }
-  }
-
   function mountFeedDashboard() {
     mountLatestMissions();
     const feedBox = document.querySelector('.fcom_feed_box');
     if (!feedBox) return;
 
-    let sw = document.getElementById('sv-home-switch');
-    if (!sw) {
-      sw = document.createElement('nav');
-      sw.id = 'sv-home-switch';
-      sw.setAttribute('aria-label', 'Home views');
-      sw.innerHTML = '<button type="button" class="sv-space-tab" data-view="home">Home</button><button type="button" class="sv-space-tab" data-view="feed">Feed</button>';
-      sw.addEventListener('click', (e) => {
-        const btn = e.target.closest && e.target.closest('[data-view]');
-        if (!btn) return;
-        feedBox.setAttribute('data-sv-view', btn.getAttribute('data-view'));
-        applyHomeView(feedBox);
-      });
-      feedBox.insertBefore(sw, feedBox.firstChild);
-      feedBox.setAttribute('data-sv-view', takeOpenFeedFlag() ? 'feed' : 'home');
-    }
-
     let banner = document.getElementById('sv-feed-dashboard');
-    if (!banner) {
-      banner = document.createElement('div');
-      banner.id = 'sv-feed-dashboard';
-      feedBox.insertBefore(banner, sw.nextSibling);
-      renderFeedDashboardContent(banner);
-    }
-    applyHomeView(feedBox);
+
+    // Home is dashboard-only: hide every native sibling (welcome banner, post composer, post list)
+    // every time this runs, so it stays hidden even if Vue re-shows something. Hidden via
+    // display:none, never removed, so Vue can keep managing those elements.
+    Array.from(feedBox.children).forEach((child) => {
+      if (child !== banner) child.style.display = 'none';
+    });
+
+    if (banner) return; // content already rendered this session
+
+    banner = document.createElement('div');
+    banner.id = 'sv-feed-dashboard';
+    feedBox.insertBefore(banner, feedBox.firstChild);
+
+    renderFeedDashboardContent(banner);
   }
 
   async function renderFeedDashboardContent(banner) {
     banner.innerHTML = '<div style="text-align:center; padding:20px 0; color:var(--sv-text-muted);">Loading your progress...</div>';
 
     const uid = await ensureAuth();
-    const [course, , completionsRes, missionsRes] = await Promise.all([
+    const [course, , completionsRes] = await Promise.all([
       getCourse(),
       loadLessonsManifest(),
       supabase.from('lesson_completions').select('lesson_id, completed_at').eq('user_id', uid),
-      supabase.from('lesson_missions').select('*').order('created_at', { ascending: false }).limit(3),
     ]);
     const { data: completions, error } = completionsRes;
 
@@ -1463,14 +1440,9 @@
 
     const streak = calculateStreak(completedDates);
     const completedCount = getTotalCompletedCount(countedIds);
-    const currentLesson = getCurrentLesson(courseLessons, completedIds);
+    const openLessons = courseLessons.filter((l) => isLessonPublished(l, _lessonsManifest));
+    const currentLesson = getCurrentLesson(openLessons, completedIds);
     const courseUrl = course ? course.url : FEED_DASHBOARD_COURSE_URL;
-    const zuvaLabel = (lesson) => {
-      const e = lesson && findLessonEntry(_lessonsManifest || [], { href: lesson.url, title: lesson.title });
-      if (!e || e.zuva <= 0 || zuvaFromTitle(lesson.title) !== null) return ''; // title already says it
-      return ' · Zuva ' + e.zuva;
-    };
-
     const svIconCheck = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
     const svIconFlame = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2c1 3-3 4-3 8a3 3 0 0 0 6 0c1 1 2 2.5 2 4.5A5.5 5.5 0 0 1 6 14c0-5 4-6 6-12z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg>`;
     const svIconMap = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 3 3 5v16l6-2 6 2 6-2V3l-6 2-6-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 3v16M15 5v16" stroke="currentColor" stroke-width="1.8"></path></svg>`;
@@ -1494,15 +1466,20 @@
         </div>
       `;
     } else if (currentLesson) {
-      // The lesson's YouTube thumbnail (video id comes from mazwi's lessons.json), when we have one
+      // The lesson's YouTube thumbnail (video id comes from mazwi's lessons.json), when we have one.
+      // maxres is sharp; not every video has one, so it falls back to hq.
       const entry = findLessonEntry(_lessonsManifest || [], { href: currentLesson.url, title: currentLesson.title });
       const videoId = entry && /^[A-Za-z0-9_-]{11}$/.test(entry.video || '') ? entry.video : '';
-      const thumb = videoId ? `<img class="sv-dash-lesson-thumb" src="https://i.ytimg.com/vi/${videoId}/hqdefault.jpg" alt="" loading="lazy">` : '';
+      const thumb = videoId
+        ? `<img class="sv-dash-lesson-thumb" src="https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg" alt="" loading="lazy" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/${videoId}/hqdefault.jpg'">`
+        : '';
+      const zuvaNo = entry && entry.zuva > 0 ? entry.zuva : zuvaFromTitle(currentLesson.title);
+      const lessonName = cleanLessonTitle(currentLesson.title) || currentLesson.title;
       lessonCard = `
         <a class="sv-dash-lesson-card sv-dash-lesson-link" href="${safeUrl(currentLesson.url)}">
           ${thumb}
-          <div class="sv-dash-lesson-eyebrow">${completedCount > 0 ? "Today's lesson" : 'Your first lesson'}${escHtml(zuvaLabel(currentLesson))}</div>
-          <div class="sv-dash-lesson-title">${escHtml(currentLesson.title)}</div>
+          <div class="sv-dash-lesson-eyebrow">${completedCount > 0 ? "Today's lesson" : 'Your first lesson'}${zuvaNo > 0 ? ' · Zuva ' + zuvaNo : ''}</div>
+          <div class="sv-dash-lesson-title">${escHtml(lessonName)}</div>
           <span class="sv-dash-lesson-go">Start lesson →</span>
         </a>
       `;
@@ -1510,7 +1487,8 @@
       lessonCard = `
         <div class="sv-dash-lesson-card">
           <div class="sv-dash-lesson-eyebrow">All caught up</div>
-          <div class="sv-dash-lesson-title">You've completed every lesson so far</div>
+          <div class="sv-dash-lesson-title">You've completed every published lesson</div>
+          <p class="sv-dash-lesson-sub">${escHtml(nextArrivalText(_lessonsManifest))}</p>
           <a class="sv-dash-lesson-btn" href="${safeUrl(courseUrl)}">Browse lessons</a>
         </div>
       `;
@@ -1522,23 +1500,13 @@
 
     // Small GitHub-style squares for the month (the lesson-complete modal already shows the week).
     // Brand-new learners have nothing to show yet, so they get none.
-    const monthHtml = completedDates.length === 0 ? '' : `
+    const monthHtml = completedDates.length === 0 && completedCount === 0 ? '' : `
       <div class="sv-dash-month" aria-label="${monthNames[monthMap.month]} ${monthMap.year}">
         <div class="sv-dash-month-title">${monthNames[monthMap.month]}</div>
         <div class="sv-dash-month-grid">
           ${monthMap.days.filter(Boolean).map((d) => `<span class="sv-dash-sq${d.done ? ' sv-dash-sq-done' : (d.isToday ? ' sv-dash-sq-today' : '')}" title="${d.day}"></span>`).join('')}
         </div>
       </div>`;
-
-    // A few of the latest missions, so Home feels alive (and brand-new learners see others posting).
-    const lessonsById = {};
-    (course ? course.lessons : []).forEach((l) => { lessonsById[l.id] = l; });
-    const missions = missionsRes && !missionsRes.error ? (missionsRes.data || []) : [];
-    const communityHtml = missions.length ? `
-      <div class="sv-dash-community">
-        <div class="sv-dash-community-title">From the community</div>
-        <div class="sv-lm-list">${renderLatestMissionsHtml(missions, lessonsById)}</div>
-      </div>` : '';
 
     banner.innerHTML = `
       <div class="sv-dash-stats">
@@ -1554,7 +1522,6 @@
       </div>
       ${lessonCard}
       ${monthHtml}
-      ${communityHtml}
     `;
   }
 
@@ -1592,6 +1559,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();

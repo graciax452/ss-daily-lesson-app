@@ -262,7 +262,8 @@ describe('Home: lesson card thumbnail (D1)', () => {
     mountUI();
     await settle();
     const img = document.querySelector('#sv-feed-dashboard .sv-dash-lesson-thumb');
-    expect(img.getAttribute('src')).toBe('https://i.ytimg.com/vi/wNPpqto7CYc/hqdefault.jpg');
+    expect(img.getAttribute('src')).toBe('https://i.ytimg.com/vi/wNPpqto7CYc/maxresdefault.jpg'); // sharp one first
+    expect(img.getAttribute('onerror')).toContain('hqdefault.jpg'); // hq if a video has no maxres
   });
 
   it('shows no thumbnail without a video id (and rejects a malformed one)', async () => {
@@ -272,5 +273,55 @@ describe('Home: lesson card thumbnail (D1)', () => {
     mountUI();
     await settle();
     expect(document.querySelector('#sv-feed-dashboard .sv-dash-lesson-thumb')).toBeNull();
+  });
+});
+
+describe('Home: only published lessons, clean title (D1)', () => {
+  const day2 = 'https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-2';
+
+  it('never sends a learner to a lesson FluentCommunity has not published (draft)', async () => {
+    mockCourse({ completed: ['10', '11'] });
+    // mark lesson 12 (Day 2) as a draft in the course response
+    const orig = globalThis.fetch;
+    globalThis.fetch = async (...a) => {
+      const res = await orig(...a);
+      const json = await res.json();
+      json.sections.forEach((sec) => sec.lessons.forEach((l) => { if (l.id === 12) l.status = 'draft'; }));
+      return { ok: true, json: async () => json };
+    };
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    mountUI();
+    await settle();
+    const banner = document.getElementById('sv-feed-dashboard');
+    expect(banner.textContent).toContain('All caught up');
+    expect(banner.textContent).toContain('completed every published lesson');
+    expect(banner.textContent).toContain('New lessons are coming soon');
+    expect(banner.querySelector('a.sv-dash-lesson-card')).toBeNull();
+  });
+
+  it("says when the next lesson arrives (tomorrow) once every open lesson is done", async () => {
+    mockCourse({ completed: ['10', '11'] });
+    const t = new Date(); t.setDate(t.getDate() + 1);
+    const tomorrow = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+    const { mountUI, _setLessonsManifest } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    _setLessonsManifest([{ zuva: 2, type: 'lesson', title: 'Day 2', fc_url: day2, publish_date: tomorrow }]);
+    mountUI();
+    await settle();
+    const banner = document.getElementById('sv-feed-dashboard');
+    expect(banner.textContent).toContain('Your next lesson arrives tomorrow');
+    expect(banner.querySelector('a.sv-dash-lesson-card')).toBeNull();
+  });
+
+  it('shows the clean lesson name with Zuva in the eyebrow (no "Zuva 3 — 🔊" in the title)', async () => {
+    const { cleanLessonTitle } = loadApp();
+    expect(cleanLessonTitle('Zuva 3 — 🔊 Five Clean Vowels')).toBe('Five Clean Vowels');
+  });
+
+  it('shows the month squares once a lesson is completed, even when the completion is only in FluentCommunity', async () => {
+    mockCourse({ completed: ['11'] });
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } }); // no supabase rows
+    mountUI();
+    await settle();
+    expect(document.querySelectorAll('#sv-feed-dashboard .sv-dash-sq').length).toBeGreaterThan(27);
   });
 });

@@ -442,9 +442,7 @@ body.sv-toc-open .sv-toc-backdrop {
 .sv-dash-community-title { font-size: 0.95rem; font-weight: 800; color: var(--sv-text-main); margin-bottom: 6px; }
 
 /* ── Community space tabs (Lounge / Intros / Rules) ── */
-#sv-space-tabs { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 24px 0; }
-#sv-home-switch { display: flex; gap: 8px; margin-bottom: 14px; }
-#sv-home-switch .sv-space-tab { border: 0; cursor: pointer; font-family: inherit; }
+#sv-space-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 14px 24px 0; }
 .sv-space-tab { display: inline-block; padding: 8px 16px; border-radius: 999px; font-weight: 700; font-size: 0.9rem; text-decoration: none; color: var(--sv-text-muted); background: var(--sv-cream); }
 .sv-space-tab-active { background: var(--sv-orange); color: #ffffff; }
 @media (hover: hover) { .sv-space-tab:not(.sv-space-tab-active):hover { color: var(--sv-text-main); } }
