@@ -58,3 +58,12 @@ scripts/verify-cdn.sh <commit-sha>
 ```
 
 which purges `@main` and confirms it now actually matches what was pushed, instead of guessing from a manual curl.
+
+## Free-member / enrolled flow tests (added 2026-10-06)
+
+`test/regression/free-member-flow.test.js`, `enrolled-flow.test.js`, `lesson-completion-flow.test.js` and `local-day.test.js` drive the whole completion flow: mark, celebrate, move on, refresh, Home numbers, and the tick sync when someone joins.
+
+- `test/setup.js` has a small **in-memory Supabase store** (`supabaseOverrides: { store, auth }`): select/eq filters, upsert on user_id + lesson_id, insert. Load the app again against the same store to simulate a refresh.
+- Each `loadApp()` starts timers and a `MutationObserver` that keep running against the next test's page (production has one app instance). These files track and stop them after every test, and wait ~220 ms for the 150 ms `scheduleMountUI()` debounce.
+- Leaving the page goes through `navigateTo()` (`_setNavigate` in tests), so a test can see where a button would go.
+- Days are the learner's **local** days (`localDay()`), never UTC; `local-day.test.js` forces a western and an eastern zone.
