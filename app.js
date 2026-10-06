@@ -1339,8 +1339,8 @@
   // FluentCommunity prints four equal plan cards. We hide them (never remove) and show two plans —
   // Daily Lessons and Daily Lessons + Live — with a Monthly / Yearly switch, built from the real
   // prices and checkout links in those native cards, so nothing is hard-coded here.
-  const PLAN_BULLETS_BASE = ['A short new lesson every day', 'Every lesson word in the mazwi flashcard app', 'Missions and the community'];
-  const PLAN_BULLETS_LIVE = ['Everything in Daily Lessons', 'Live classes every Friday — kids and adults', 'Recordings of every class'];
+  const PLAN_BULLETS_BASE = ['Self-led online course: a short new lesson every day', 'Every lesson word in the mazwi flashcard app', 'Missions and the community'];
+  const PLAN_BULLETS_LIVE = ['Everything in Daily Lessons', 'Live online class every Friday — kids and adults', 'Recordings of every class'];
 
   function readPaywallPlans(root) {
     const out = [];
@@ -1363,7 +1363,7 @@
     const pick = (live, yearly) => plans.find((p) => p.live === live && p.yearly === yearly) || null;
     return [
       { id: 'base', name: 'Daily Lessons', cta: 'Join Daily Lessons', bullets: PLAN_BULLETS_BASE, month: pick(false, false), year: pick(false, true) },
-      { id: 'live', name: 'Daily Lessons + Live', cta: 'Join Daily Lessons + Live', bullets: PLAN_BULLETS_LIVE, month: pick(true, false), year: pick(true, true) },
+      { id: 'live', name: 'Daily Lessons + Live Classes', cta: 'Join Daily Lessons + Live Classes', bullets: PLAN_BULLETS_LIVE, month: pick(true, false), year: pick(true, true) },
     ].filter((g) => g.month || g.year);
   }
 

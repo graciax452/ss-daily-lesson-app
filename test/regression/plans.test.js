@@ -16,7 +16,7 @@ describe('Daily Lessons sales page', () => {
   it('shows two plans, Daily Lessons and Daily Lessons + Live — never the long FluentCart product names', () => {
     mount();
     const names = Array.from(document.querySelectorAll('#sv-plans .sv-plan-name')).map((n) => n.textContent);
-    expect(names).toEqual(['Daily Lessons', 'Daily Lessons + Live']);
+    expect(names).toEqual(['Daily Lessons', 'Daily Lessons + Live Classes']);
     expect(document.getElementById('sv-plans').textContent).not.toContain('Weekly Live Lessons');
   });
 
@@ -42,7 +42,7 @@ describe('Daily Lessons sales page', () => {
   it('the buttons say exactly which plan you are joining (not "with Live")', () => {
     mount();
     expect(card('base').querySelector('.sv-plan-btn').textContent).toBe('Join Daily Lessons');
-    expect(card('live').querySelector('.sv-plan-btn').textContent).toBe('Join Daily Lessons + Live');
+    expect(card('live').querySelector('.sv-plan-btn').textContent).toBe('Join Daily Lessons + Live Classes');
     expect(document.querySelector('#sv-plans .sv-plans-bill').textContent).toBe('Choose how you pay');
   });
 
