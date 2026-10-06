@@ -1405,17 +1405,19 @@
     const have = new Set(course.completedIds.map(String));
     const inCourse = new Set(course.lessons.map((l) => String(l.id)));
     const missing = courseRows.map((r) => String(r.lesson_id)).filter((id) => inCourse.has(id) && !have.has(id));
+    console.log('[SV sync] free-member lessons to tick in FluentCommunity:', missing);
     if (!missing.length) return;
     _syncedOwn = true;
     for (const id of Array.from(new Set(missing))) {
       try {
-        await fetch(rest.url + '/courses/' + course.id + '/lessons/' + id + '/completion', {
+        const res = await fetch(rest.url + '/courses/' + course.id + '/lessons/' + id + '/completion', {
           method: 'PUT',
           headers: Object.assign({ 'Content-Type': 'application/json' }, rest.nonce ? { 'X-WP-Nonce': rest.nonce } : {}),
           credentials: 'include',
           body: JSON.stringify({ state: 'completed' }),
         });
-      } catch (e) { /* try again next visit */ }
+        console.log('[SV sync] lesson', id, '->', res && res.status);
+      } catch (e) { console.warn('[SV sync] lesson', id, 'failed:', e && e.message); }
     }
   }
 
