@@ -20,7 +20,45 @@ const require = createRequire(import.meta.url);
 // (e.g. lesson_missions vs lesson_completions), since app.js queries both
 // in the same celebration flow and a single shared result would corrupt
 // whichever one isn't the one the test actually cares about.
+// Stateful variant: overrides.store = { table: [rows] } behaves like a tiny database (select + eq
+// filters, upsert on user_id+lesson_id, insert, delete), so a test can mark a lesson, "refresh" (load the
+// app again against the same store) and see what survived. overrides.auth supplies the session.
+function createStoreMock(overrides) {
+  const store = overrides.store;
+  const rowsOf = (t) => (store[t] = store[t] || []);
+  const query = (table) => {
+    const filters = [];
+    const run = () => Promise.resolve({ data: rowsOf(table).filter((r) => filters.every(([k, v]) => String(r[k]) === String(v))), error: null });
+    const q = {
+      select: () => q,
+      eq: (k, v) => { filters.push([k, v]); return q; },
+      order: () => q,
+      limit: () => run(),
+      then: (resolve, reject) => run().then(resolve, reject),
+    };
+    return q;
+  };
+  return {
+    auth: overrides.auth,
+    from: (table) => ({
+      select: () => query(table),
+      insert: (rows) => { rowsOf(table).push(...[].concat(rows)); return Promise.resolve({ data: [], error: null }); },
+      upsert: (rows) => {
+        [].concat(rows).forEach((row) => {
+          const i = rowsOf(table).findIndex((r) => r.user_id === row.user_id && String(r.lesson_id) === String(row.lesson_id));
+          if (i >= 0) rowsOf(table)[i] = Object.assign({}, rowsOf(table)[i], row);
+          else rowsOf(table).push(Object.assign({ completed_at: new Date().toISOString() }, row));
+        });
+        return Promise.resolve({ data: [], error: null });
+      },
+      delete: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }),
+    }),
+    storage: { from: () => ({ upload: () => Promise.resolve({ data: {}, error: null }), getPublicUrl: () => ({ data: { publicUrl: 'https://example.com/fake.png' } }) }) },
+  };
+}
+
 function createSupabaseMock(overrides = {}) {
+  if (overrides.store) return createStoreMock(overrides);
   const defaultSelectResult = overrides.selectResult || { data: [], error: null };
   const selectResultByTable = overrides.selectResultByTable || {};
 

@@ -962,7 +962,7 @@
     document.getElementById('sv-celebration-continue')?.addEventListener('click', () => {
       wrap.classList.remove('is-active');
       if (!hasNext) return;
-      if (nextStep && nextStep.url) window.location.assign(nextStep.url);
+      if (nextStep && nextStep.url) navigateTo(nextStep.url);
       else if (nextBtn) nextBtn.click();
     });
 
@@ -1437,6 +1437,11 @@
 
   // A lesson the person does not have yet: FluentCommunity prints "This lesson is currently locked".
   // Swap that for one calm line and a single button; the plans stay a click away, never in the way.
+  // One place that leaves the page, so tests can watch where a button goes.
+  let _navigate = (url) => window.location.assign(url);
+  function navigateTo(url) { _navigate(url); }
+  function _setNavigate(fn) { _navigate = fn; }
+
   const _ownDone = new Set();    // lessons a free member has marked complete (kept in our own table)
   const _ownChecked = new Set(); // lesson slugs already looked up this page load
   const _ownIdBySlug = {};
@@ -1718,7 +1723,7 @@
               celebrateLessonCompletion(id).then(async (r) => {
                 if (r !== 'onboarding') return;
                 const step = celebrationNextStep({ completedId: id, currentId: id, course: await getCourse() });
-                if (step.action === 'advance') window.location.assign(step.url);
+                if (step.action === 'advance') navigateTo(step.url);
               });
             });
             return;
@@ -2221,6 +2226,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { celebrationNextStep, zuvaNumberForPage, lessonProgress, celebrateLessonCompletion, syncOwnCompletions, resolveLessonIdBySlug, ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_NAME, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { _setNavigate, celebrationNextStep, zuvaNumberForPage, lessonProgress, celebrateLessonCompletion, syncOwnCompletions, resolveLessonIdBySlug, ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_NAME, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();
