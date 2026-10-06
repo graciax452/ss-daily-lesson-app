@@ -186,7 +186,7 @@ describe('Home: current lesson from FluentCommunity', () => {
     expect(banner.textContent).toContain('Day 2');
     // the whole card is the link — no separate button
     expect(banner.querySelector('a.sv-dash-lesson-card').getAttribute('href'))
-      .toBe('https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-2');
+      .toBe('https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-2/view');
     const stats = Array.from(document.querySelectorAll('.sv-dash-stat-value')).map((el) => el.textContent);
     expect(stats[0]).toBe('1'); // lesson 11 only — onboarding (10) is excluded
   });

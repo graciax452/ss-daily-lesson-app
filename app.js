@@ -1728,7 +1728,7 @@
       slug: l.slug || '',
       section: sec.title || '',
       status: l.status || '',
-      url: `${portal}/course/${course.slug || COURSE_SLUG}/lessons/${l.slug}`,
+      url: `${portal}/course/${course.slug || COURSE_SLUG}/lessons/${l.slug}/view`,
     })));
   }
 
