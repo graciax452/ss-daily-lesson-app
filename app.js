@@ -1029,6 +1029,13 @@
       if (home.nextElementSibling !== community) firstList.insertBefore(community, home.nextSibling);
     }
 
+    // Live Classes goes last, after the courses
+    const lists = wrap.querySelectorAll('.fcom_communities_menu nav ul');
+    const lastList = lists[lists.length - 1];
+    const liveA = wrap.querySelector('a.fcom_space_liveclass');
+    const liveLi = liveA && liveA.closest('li');
+    if (lastList && liveLi && lastList.lastElementChild !== liveLi) lastList.appendChild(liveLi);
+
     // Shop + the website: small icons at the bottom instead of a menu block at the top
     const site = document.querySelector('.fcom_menu_item_fcom_custom_speak_shona_website a');
     const shop = document.querySelector('.fcom_menu_item_fcom_custom_shop a');

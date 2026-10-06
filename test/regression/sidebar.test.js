@@ -13,10 +13,10 @@ const labels = () => Array.from(document.querySelectorAll('#fcom_sidebar_wrap .s
   .map((li) => li.querySelector('.community_name').textContent);
 
 describe('Left sidebar', () => {
-  it('shows Home, Community, Live Classes, then the courses — the community spaces are hidden', () => {
+  it('shows Home, Community, the courses, then Live Classes last — the community spaces are hidden', () => {
     const { mountUI } = loadApp({ fixture: 'sidebar', bodyAttrs: { 'data-route': 'all_feeds' } });
     mountUI();
-    expect(labels()).toEqual(['Home', 'Community', 'Live Classes', 'Daily Shona Lessons', 'Replays (camps and cohorts)', 'YouTube Lessons in Order']);
+    expect(labels()).toEqual(['Home', 'Community', 'Daily Shona Lessons', 'Replays (camps and cohorts)', 'YouTube Lessons in Order', 'Live Classes']);
     // hidden, not removed (Vue keeps managing them)
     ['say-hello', 'rules', 'general'].forEach((slug) => {
       const li = document.querySelector('a.fcom_space_' + slug).closest('li');
