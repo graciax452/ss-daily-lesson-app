@@ -138,7 +138,7 @@ describe('Feed page dashboard banner (mounts into the real portal shell, not a s
     expect(document.querySelector('#sv-feed-dashboard .sv-dash-lesson-btn')).not.toBeNull();
   });
 
-  it('clicking the start button answers straight away ("Opening…") because lesson pages load slowly', async () => {
+  it('clicking the start button swaps the card for grey placeholder lines straight away, so no half-loaded page flashes before the redirect', async () => {
     const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
     document.body.insertAdjacentHTML('beforeend', '<a class="fcom_login_btn" href="https://speakshona.com/pinda"></a>');
     mountUI();
@@ -147,7 +147,18 @@ describe('Feed page dashboard banner (mounts into the real portal shell, not a s
     const btn = document.querySelector('#sv-feed-dashboard .sv-dash-lesson-btn');
     btn.addEventListener('click', (e) => e.preventDefault());
     btn.click();
-    expect(btn.textContent).toBe('Opening…');
+    await new Promise((r) => setTimeout(r, 5)); // the swap happens right after the click, once the browser has taken the link
+    expect(document.querySelector('#sv-feed-dashboard .sv-skel')).not.toBeNull();
+    expect(document.querySelector('#sv-feed-dashboard .sv-dash-lesson-btn')).toBeNull();
+  });
+
+  it('while loading with nothing saved, shows grey placeholder lines (not text, not a half-built card)', async () => {
+    localStorage.clear();
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    mountUI();
+    expect(document.querySelector('#sv-feed-dashboard .sv-skel')).not.toBeNull();
+    await waitForMicrotasks();
+    expect(document.querySelector('#sv-feed-dashboard .sv-skel')).toBeNull();
   });
 
   it('shows what was on screen last time straight away while the fresh data loads', async () => {

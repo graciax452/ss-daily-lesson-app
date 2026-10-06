@@ -801,7 +801,14 @@ body.sv-toc-open .sv-toc-backdrop {
 .sv-free-btn { display: inline-block; padding: 14px 32px; border-radius: 999px; background: var(--sv-orange); color: #ffffff; font-weight: 800; font-size: 1.05rem; text-decoration: none; }
 .sv-plans-toggle { display: block; margin: 0 auto 8px; border: 0; background: transparent; font-family: inherit; font-size: 0.9rem; color: var(--sv-text-muted); text-decoration: underline; cursor: pointer; }
 .sv-plans-more[hidden] { display: none; }
-.sv-dash-opening { opacity: 0.7; pointer-events: none; }
+/* grey placeholder lines while a page loads */
+.sv-skel-pill, .sv-skel-img, .sv-skel-line { background: linear-gradient(90deg, #ece7e0 25%, #f5f1ec 50%, #ece7e0 75%); background-size: 200% 100%; animation: sv-skel-shimmer 1.4s ease-in-out infinite; border-radius: 10px; }
+.sv-skel-pill { width: 120px; height: 36px; border-radius: 999px; margin-bottom: 16px; }
+.sv-skel-card { background: #ffffff; border: 1px solid var(--sv-border); border-radius: 24px; padding: 20px; }
+.sv-skel-img { height: 220px; margin-bottom: 18px; }
+.sv-skel-line { height: 14px; margin: 10px 0; }
+.sv-skel-w40 { width: 40%; } .sv-skel-w70 { width: 70%; } .sv-skel-w30 { width: 30%; }
+@keyframes sv-skel-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 
 /* Locked lesson: one calm line instead of a paywall */
 #sv-locker { max-width: 460px; margin: 40px auto; padding: 0 16px; text-align: center; }

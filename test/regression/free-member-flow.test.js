@@ -49,6 +49,7 @@ function openLesson(slug, store, { signedIn = true } = {}) {
   document.querySelector('.fcom_lesson_title h1').textContent = lesson.title;
   if (!signedIn) document.body.insertAdjacentHTML('beforeend', '<a class="fcom_login_btn" href="https://speakshona.com/pinda"></a>');
   app.mountUI();
+  document.querySelector('button[aria-label="Next lesson"]')?.addEventListener('click', () => { nextClicks += 1; });
   return app;
 }
 
@@ -61,9 +62,11 @@ const savedIds = (store) => (store.lesson_completions || []).map((r) => String(r
 // Each loadApp() starts timers and observers that would keep running against the next test's page
 // (production has one app instance; tests make many). Track them and stop them after every test.
 let gone;
+let nextClicks = 0; // times FluentCommunity's own "Next lesson" button was pressed (the page moving on without a reload)
 let stops = [];
 beforeEach(() => {
   gone = [];
+  nextClicks = 0;
   const realInterval = globalThis.setInterval;
   const realTimeout = globalThis.setTimeout;
   const RealMO = globalThis.MutationObserver;
@@ -102,15 +105,18 @@ describe('free member marks a lesson complete', () => {
     expect(modal().textContent).toContain('Zuva 1 complete!');
   });
 
-  it("the celebration's Next button goes to the following lesson, not past it", async () => {
+  it("completing moves the page on by itself (no reload) and the celebration's button only closes", async () => {
     const store = {};
     const app = openLesson('day-1', store);
     app._setNavigate((u) => gone.push(u));
     await settle();
     markBtn().click();
     await settle();
+    expect(nextClicks).toBe(1); // moved on once, through the page's own Next button
     document.getElementById('sv-celebration-continue').click();
-    expect(gone).toEqual([BASE + 'day-2/view']);
+    expect(nextClicks).toBe(1); // closing the celebration does not move on again (that skipped a lesson)
+    expect(gone).toEqual([]);   // and never reloads the page
+    expect(modal().classList.contains('is-active')).toBe(false);
   });
 
   it('after a refresh the lesson stays "Lesson Completed" and "Mark Lesson Complete" never flashes', async () => {
@@ -161,7 +167,8 @@ describe('Zuva 0 (onboarding)', () => {
 
     expect(savedIds(store)).toEqual(['126']);
     expect(modal()).toBeNull();
-    expect(gone).toEqual([BASE + 'day-1/view']);
+    expect(nextClicks).toBe(1);
+    expect(gone).toEqual([]);
   });
 });
 

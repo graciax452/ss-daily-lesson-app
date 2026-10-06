@@ -888,8 +888,9 @@
       : !!(nextBtn && nextBtn.getAttribute('aria-disabled') !== 'true');
     const nextZuva = zuva && (_lessonsManifest || []).find((l) => l.zuva === zuva.zuva + 1);
     // 'stay' with more lessons ahead means the page already moved on by itself: just carry on.
-    const nextLabel = nextStep && !hasNext && moreAfter
-      ? 'Keep going →'
+    // Completing has already moved the page on by itself, so this button only closes the celebration.
+    const nextLabel = nextStep
+      ? (moreAfter ? 'Keep going →' : 'Done for today')
       : (!hasNext ? 'Done for today' : (nextZuva ? `Next: Zuva ${nextZuva.zuva} →` : 'Next lesson →'));
 
     wrap.innerHTML = `
@@ -961,9 +962,8 @@
 
     document.getElementById('sv-celebration-continue')?.addEventListener('click', () => {
       wrap.classList.remove('is-active');
-      if (!hasNext) return;
-      if (nextStep && nextStep.url) navigateTo(nextStep.url);
-      else if (nextBtn) nextBtn.click();
+      if (nextStep) return; // never moves on again (that skipped a lesson, or reloaded the page)
+      if (hasNext && nextBtn) nextBtn.click();
     });
 
     document.getElementById('sv-celebration-submit-mission')?.addEventListener('click', () => {
@@ -1437,6 +1437,15 @@
 
   // A lesson the person does not have yet: FluentCommunity prints "This lesson is currently locked".
   // Swap that for one calm line and a single button; the plans stay a click away, never in the way.
+  // Grey placeholder lines shown while the Home card loads, and straight after a click that leaves
+  // the page, so nothing half-built flashes before the next page arrives.
+  function skeletonHtml() {
+    return '<div class="sv-skel" aria-hidden="true">'
+      + '<div class="sv-skel-pill"></div>'
+      + '<div class="sv-skel-card"><div class="sv-skel-img"></div>'
+      + '<div class="sv-skel-line sv-skel-w40"></div><div class="sv-skel-line sv-skel-w70"></div><div class="sv-skel-line sv-skel-w30"></div></div></div>';
+  }
+
   // One place that leaves the page, so tests can watch where a button goes.
   let _navigate = (url) => window.location.assign(url);
   function navigateTo(url) { _navigate(url); }
@@ -1720,11 +1729,9 @@
               if (!id) return; // never guess an id: a wrong one would tick another lesson
               _ownDone.add(id);
               scheduleMountUI();
-              celebrateLessonCompletion(id).then(async (r) => {
-                if (r !== 'onboarding') return;
-                const step = celebrationNextStep({ completedId: id, currentId: id, course: await getCourse() });
-                if (step.action === 'advance') navigateTo(step.url);
-              });
+              // Move on the way FluentCommunity's own Complete does: through its Next button (no reload).
+              if (nativeNext) nativeNext.click();
+              celebrateLessonCompletion(id);
             });
             return;
           }
@@ -2047,9 +2054,8 @@
       if (e.metaKey || e.ctrlKey || e.shiftKey) return;
       const a = e.target.closest && e.target.closest('a.sv-dash-lesson-card, a.sv-dash-lesson-btn');
       if (!a || a.classList.contains('sv-dash-opening')) return;
-      a.classList.add('sv-dash-opening');
-      const label = a.classList.contains('sv-dash-lesson-card') ? a.querySelector('.sv-dash-lesson-go') : a;
-      if (label) label.textContent = 'Opening…';
+      // The browser still follows the link; this only replaces what is on screen until it does.
+      setTimeout(() => { banner.innerHTML = skeletonHtml(); }, 0);
     });
 
     renderFeedDashboardContent(banner);
@@ -2059,7 +2065,7 @@
     // Slow connection: show what this browser showed last time straight away, then refresh it.
     let cached = '';
     try { cached = localStorage.getItem(dashCacheKey()) || ''; } catch (e) { cached = ''; }
-    banner.innerHTML = cached || '<div style="text-align:center; padding:20px 0; color:var(--sv-text-muted);">Loading your progress...</div>';
+    banner.innerHTML = cached || skeletonHtml();
 
     const uid = await ensureAuth();
     const [course, , completionsRes] = await Promise.all([
