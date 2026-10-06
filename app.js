@@ -1389,6 +1389,9 @@
 
   // A lesson the person does not have yet: FluentCommunity prints "This lesson is currently locked".
   // Swap that for one calm line and a single button; the plans stay a click away, never in the way.
+  const _ownDone = new Set();    // lessons a free member has marked complete (kept in our own table)
+  const _ownChecked = new Set(); // lessons already looked up this page load
+
   function mountLockedLesson() {
     const locker = document.querySelector('.fcom_locked_container .fcom_locker');
     if (!locker) return;
@@ -1523,6 +1526,22 @@
           isCompleted = true;
       }
 
+      // A free member (not enrolled) has no native Complete button, so completion is kept in our own
+      // table. Signed-out visitors get none: ticking a lesson needs an account.
+      const ownMode = !nativeComplete && !isSignedOutPage();
+      const ownId = String(getLessonId() || '');
+      if (ownMode && ownId) {
+        if (_ownDone.has(ownId)) isCompleted = true;
+        else if (!_ownChecked.has(ownId)) {
+          _ownChecked.add(ownId);
+          ensureAuth().then((uid) => (uid
+            ? supabase.from('lesson_completions').select('lesson_id').eq('user_id', uid).eq('lesson_id', ownId)
+            : null)).then((r) => {
+            if (r && r.data && r.data.length) { _ownDone.add(ownId); scheduleMountUI(); }
+          }).catch(() => {});
+        }
+      }
+
       const svIconCircle = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"></circle></svg>`;
       const svIconCheck = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
       const svIconArrow = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
@@ -1567,7 +1586,7 @@
           rightBtnHtml = `<button type="button" class="sv-btn sv-btn-next" id="sv-trigger-next-btn">${svIconCheck} Complete ${svIconArrow}</button>`;
       } else if (isCompleted && !nativeNext) {
           rightBtnHtml = `<button type="button" class="sv-btn sv-btn-done" disabled>${svIconCheck} Lesson Completed</button>`;
-      } else if (!isCompleted && nativeComplete) {
+      } else if (!isCompleted && (nativeComplete || ownMode)) {
           rightBtnHtml = `<button type="button" class="sv-btn sv-btn-complete" id="sv-trigger-complete-btn">${svIconCircle} Mark Lesson Complete</button>`;
       }
 
@@ -1596,6 +1615,7 @@
           // recalculate after its native completion AJAX call, since reading
           // it at the instant of the click was grabbing the stale value.
           const targetLessonId = getLessonId();
+          if (ownMode) { _ownDone.add(String(targetLessonId)); celebrateLessonCompletion(targetLessonId); scheduleMountUI(); return; }
           setTimeout(() => celebrateLessonCompletion(targetLessonId), 1500);
         });
 
@@ -1947,7 +1967,7 @@
     const courseLessons = course ? course.lessons : FEED_DASHBOARD_LESSONS;
     const courseRows = filterCompletionsForCourse(rows, courseLessons);
     const onboardingIds = new Set(courseLessons.filter(isOnboardingLesson).map((l) => String(l.id)));
-    const completedIds = course ? course.completedIds : courseRows.map((r) => r.lesson_id);
+    const completedIds = course ? Array.from(new Set(course.completedIds.concat(courseRows.map((r) => String(r.lesson_id))))) : courseRows.map((r) => r.lesson_id);
     // Onboarding still counts as 'done' when finding the next lesson, but not in the ✓ total.
     const countedIds = completedIds.filter((id) => !onboardingIds.has(String(id)));
     const completedDates = courseRows.map((r) => r.completed_at);
@@ -1975,7 +1995,7 @@
           <a class="sv-dash-lesson-btn" href="${safeUrl(startUrl)}">Start your first lesson</a>
         </div>
       `;
-    } else if (course && !course.isEnrolled) {
+    } else if (course && !course.isEnrolled && !(uid && courseLessons.length)) {
       lessonCard = `
         <div class="sv-dash-lesson-card">
           <div class="sv-dash-lesson-eyebrow">Start here</div>

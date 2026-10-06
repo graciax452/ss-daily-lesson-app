@@ -108,3 +108,22 @@ describe('celebration modal trigger (fires on click after a fixed settle delay)'
     expect(wrap.querySelector('#sv-celebration-submit-mission')).not.toBeNull();
   });
 });
+
+describe('free member (not enrolled): no native Complete button, we supply our own', () => {
+  const dropNative = () => { const n = document.querySelector('.fcom_back_space .fcom_lesson_nav .el-button--info'); if (n) n.remove(); };
+
+  it('still offers "Mark Lesson Complete" when FluentCommunity shows no Complete button', () => {
+    const { mountUI } = loadApp({ fixture: 'full-lesson-page' });
+    dropNative();
+    mountUI();
+    expect(document.getElementById('sv-trigger-complete-btn')).not.toBeNull();
+  });
+
+  it('signed-out visitors get no complete button (ticking a lesson needs an account)', () => {
+    const { mountUI } = loadApp({ fixture: 'full-lesson-page' });
+    dropNative();
+    document.body.insertAdjacentHTML('beforeend', '<a class="fcom_login_btn" href="https://speakshona.com/pinda"></a>');
+    mountUI();
+    expect(document.getElementById('sv-trigger-complete-btn')).toBeNull();
+  });
+});
