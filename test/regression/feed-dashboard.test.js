@@ -102,6 +102,22 @@ describe('Feed page dashboard banner (mounts into the real portal shell, not a s
     expect(statValues).toEqual(['0', '0']);
   });
 
+  it('regression: a signed-out visitor never sees "Could not load your progress ... uuid null" (the lookup is skipped, not run with a null user id)', async () => {
+    const { mountUI } = loadApp({
+      fixture: 'feed-page',
+      bodyAttrs: { 'data-route': 'all_feeds' },
+      supabaseOverrides: {
+        selectResultByTable: {
+          lesson_completions: { data: null, error: { message: 'invalid input syntax for type uuid: "null"' } },
+        },
+      },
+    });
+    mountUI();
+    await waitForMicrotasks();
+
+    expect(document.getElementById('sv-feed-dashboard').textContent).not.toContain('Could not load your progress');
+  });
+
   it('brand-new learners get no month squares (nothing to show yet)', async () => {
     const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
     mountUI();

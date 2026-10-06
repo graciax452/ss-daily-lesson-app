@@ -1876,7 +1876,8 @@
     const [course, , completionsRes] = await Promise.all([
       getCourse(),
       loadLessonsManifest(),
-      supabase.from('lesson_completions').select('lesson_id, completed_at').eq('user_id', uid),
+      // Signed out: nothing to look up (user_id is a uuid, so querying with null is an error)
+      uid ? supabase.from('lesson_completions').select('lesson_id, completed_at').eq('user_id', uid) : { data: [], error: null },
     ]);
     const { data: completions, error } = completionsRes;
 
