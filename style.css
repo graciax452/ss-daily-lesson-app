@@ -471,6 +471,8 @@ body.sv-toc-open .sv-toc-backdrop {
 .sv-live-rec-btns { display: flex; flex-wrap: wrap; gap: 10px; }
 .sv-live-rec-btn { padding: 10px 16px; border-radius: 12px; font-weight: 700; text-decoration: none; border: 1.5px solid var(--sv-orange); color: var(--sv-orange); background: #ffffff; }
 .sv-live-rec-btn.sv-live-btn-off { border-color: transparent; }
+.sv-live-tz { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; color: var(--sv-text-muted); font-size: 0.9rem; }
+.sv-live-tz select { padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--sv-border); background: #ffffff; color: var(--sv-text-main); font-family: inherit; font-size: 0.9rem; max-width: 70vw; }
 
 /* ── Phrase bank + mazwi button (lesson page, built from mazwi.app/lessons.json) ── */
 .sv-phrasebank {

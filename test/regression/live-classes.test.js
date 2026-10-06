@@ -46,6 +46,56 @@ describe('Live class schedule maths (Vancouver time, daylight saving aware)', ()
   });
 });
 
+describe('Times shown in a chosen time zone (never trusts a browser that cannot tell its own zone)', () => {
+  const kidsStart = { start: Date.UTC(2026, 9, 9, 18, 45), end: Date.UTC(2026, 9, 9, 19, 30) };
+
+  it('Vancouver: kids class reads 11:45 AM – 12:30 PM PDT', () => {
+    const { liveLocalLabel } = loadApp();
+    expect(liveLocalLabel(kidsStart, 'America/Vancouver')).toMatch(/^Every Friday · 11:45 AM – 12:30 PM PDT$/);
+  });
+
+  it('Zimbabwe: 8:45 PM – 9:30 PM; Australia: it is Saturday morning there', () => {
+    const { liveLocalLabel } = loadApp();
+    expect(liveLocalLabel(kidsStart, 'Africa/Harare')).toMatch(/^Every Friday · 8:45 PM – 9:30 PM/);
+    expect(liveLocalLabel(kidsStart, 'Australia/Sydney')).toMatch(/^Every Saturday · 5:45 AM – 6:30 AM/);
+  });
+
+  it('a browser that cannot name its zone (undefined) falls back to Vancouver, so times never come out an hour off', () => {
+    const { liveZone, detectedZone } = loadApp();
+    const orig = Intl.DateTimeFormat.prototype.resolvedOptions;
+    Intl.DateTimeFormat.prototype.resolvedOptions = function () { return Object.assign({}, orig.call(this), { timeZone: undefined }); };
+    try {
+      localStorage.removeItem('sv_live_tz');
+      expect(detectedZone()).toBe('');
+      expect(liveZone()).toBe('America/Vancouver');
+    } finally { Intl.DateTimeFormat.prototype.resolvedOptions = orig; }
+  });
+
+  it('remembers the zone a learner picks, and ignores a nonsense saved value', () => {
+    const { liveZone } = loadApp();
+    localStorage.setItem('sv_live_tz', 'Europe/London');
+    expect(liveZone()).toBe('Europe/London');
+    localStorage.setItem('sv_live_tz', 'Not/AZone');
+    expect(['Not/AZone']).not.toContain(liveZone());
+    localStorage.removeItem('sv_live_tz');
+  });
+
+  it('the page has a "Times shown in" picker; choosing a zone re-renders the cards and is saved', async () => {
+    visit('/shonaverse/space/liveclass/home');
+    localStorage.removeItem('sv_live_tz');
+    const { mountUI } = loadApp({ fixture: 'space-page', bodyAttrs: { 'data-route': 'space_feeds' } });
+    mountUI();
+    await settle();
+    const select = document.getElementById('sv-live-tz-select');
+    expect(select).not.toBeNull();
+    select.value = 'Africa/Harare';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(localStorage.getItem('sv_live_tz')).toBe('Africa/Harare');
+    expect(document.querySelector('#sv-live .sv-live-when').textContent).toMatch(/8:45 PM/);
+    localStorage.removeItem('sv_live_tz');
+  });
+});
+
 describe('Live class cards', () => {
   const kidsWith = (LIVE_CLASSES_DEFAULT, meet) => Object.assign({}, LIVE_CLASSES_DEFAULT[0], { meet_url: meet });
 

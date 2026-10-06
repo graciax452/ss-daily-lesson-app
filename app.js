@@ -1065,14 +1065,51 @@
 
   // ── Live Classes page: two class cards (kids / adults) with a countdown that turns into a Join
   // button, plus recordings buttons. Times are fixed in the teacher's time zone (Vancouver, so they
-  // follow daylight saving) and shown in each learner's own time zone. The schedule below is only a
+  // follow daylight saving) and shown in a time zone the learner can pick. The schedule below is only a
   // fallback: the live_classes table (members-only, Supabase row-level security) holds the Meet links and
   // recordings links, so they are never written into this public file.
   const LIVE_JOIN_LEAD_MS = 10 * 60 * 1000; // Join opens 10 minutes before the start
+  const LIVE_TZ_KEY = 'sv_live_tz';
+  const LIVE_FALLBACK_TZ = 'America/Vancouver';
   const LIVE_CLASSES_DEFAULT = [
     { id: 'kids', title: 'Kids class', blurb: 'Ages 7+', dow: 5, start: '11:45', end: '12:30', tz: 'America/Vancouver', first: '2026-10-09', meet_url: '', recordings_url: '' },
     { id: 'adults', title: 'Adults class', blurb: 'Every level welcome', dow: 5, start: '12:45', end: '13:30', tz: 'America/Vancouver', first: '2026-10-09', meet_url: '', recordings_url: '' },
   ];
+  const LIVE_ZONES = [
+    ['America/Vancouver', 'Pacific — Vancouver, Los Angeles'],
+    ['America/Denver', 'Mountain — Calgary, Denver'],
+    ['America/Chicago', 'Central — Chicago, Winnipeg'],
+    ['America/New_York', 'Eastern — Toronto, New York'],
+    ['America/Halifax', 'Atlantic — Halifax'],
+    ['Europe/London', 'United Kingdom — London'],
+    ['Europe/Paris', 'Central Europe — Paris, Berlin'],
+    ['Africa/Harare', 'Zimbabwe — Harare'],
+    ['Africa/Johannesburg', 'South Africa — Johannesburg'],
+    ['Asia/Dubai', 'Dubai'],
+    ['Australia/Sydney', 'Australia — Sydney'],
+    ['Pacific/Auckland', 'New Zealand — Auckland'],
+    ['UTC', 'UTC'],
+  ];
+
+  function validZone(tz) {
+    if (!tz) return false;
+    try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true; } catch (e) { return false; }
+  }
+
+  // Some browsers can't tell their own time zone (it comes back undefined, and dates then print as
+  // a fixed GMT offset that is wrong half the year), so the zone is never taken for granted.
+  function detectedZone() {
+    try {
+      const tz = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return validZone(tz) ? tz : '';
+    } catch (e) { return ''; }
+  }
+
+  function liveZone() {
+    let saved = '';
+    try { saved = localStorage.getItem(LIVE_TZ_KEY) || ''; } catch (e) { /* private mode */ }
+    return validZone(saved) ? saved : (detectedZone() || LIVE_FALLBACK_TZ);
+  }
 
   // How far ahead of UTC a time zone is at a given moment (handles daylight saving)
   function tzOffsetMs(ms, tz) {
@@ -1114,15 +1151,17 @@
     return (d ? d + 'd ' : '') + (d || h ? h + 'h ' : '') + m + 'm';
   }
 
-  // "Every Friday · 2:45 PM – 3:30 PM EDT", in the viewer's own time zone
-  function liveLocalLabel(s) {
-    const t = (ms) => new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    const zone = (new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(new Date(s.start)).find((x) => x.type === 'timeZoneName') || {}).value || '';
-    const weekday = new Date(s.start).toLocaleDateString(undefined, { weekday: 'long' });
-    return 'Every ' + weekday + ' · ' + t(s.start) + ' – ' + t(s.end) + (zone ? ' ' + zone : '');
+  // "Every Friday · 11:45 AM – 12:30 PM PDT" in the chosen time zone (weekday included: in
+  // Australia the Friday class is on Saturday morning)
+  function liveLocalLabel(s, zone) {
+    const tz = validZone(zone) ? zone : LIVE_FALLBACK_TZ;
+    const t = (ms) => new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+    const name = (new Intl.DateTimeFormat('en-US', { timeZoneName: 'short', timeZone: tz }).formatToParts(new Date(s.start)).find((x) => x.type === 'timeZoneName') || {}).value || '';
+    const weekday = new Date(s.start).toLocaleDateString('en-US', { weekday: 'long', timeZone: tz });
+    return 'Every ' + weekday + ' · ' + t(s.start) + ' – ' + t(s.end) + (name ? ' ' + name : '');
   }
 
-  function renderLiveCard(cls, now) {
+  function renderLiveCard(cls, now, zone) {
     const s = nextLiveSession(cls, now);
     let action;
     if (!s) {
@@ -1136,7 +1175,7 @@
     }
     return '<div class="sv-live-card" data-class="' + escHtml(cls.id) + '">'
       + '<div class="sv-live-title">' + escHtml(cls.title) + '</div>'
-      + (s ? '<div class="sv-live-when">' + escHtml(liveLocalLabel(s)) + '</div>' : '')
+      + (s ? '<div class="sv-live-when">' + escHtml(liveLocalLabel(s, zone || liveZone())) + '</div>' : '')
       + (cls.blurb ? '<div class="sv-live-blurb">' + escHtml(cls.blurb) + '</div>' : '')
       + action + '</div>';
   }
@@ -1152,10 +1191,23 @@
       + '<div class="sv-live-rec-btns">' + btn(kids, 'Kids recordings') + btn(adults, 'Adults recordings') + '</div></div>';
   }
 
+  // The "Times shown in" picker is built once and left alone, so the 30-second refresh of the cards
+  // never closes an open dropdown.
+  function liveZonePickerHtml() {
+    const current = liveZone();
+    const list = LIVE_ZONES.some((z) => z[0] === current) ? LIVE_ZONES : [[current, current.replace(/_/g, ' ') + ' (your device)']].concat(LIVE_ZONES);
+    return '<label class="sv-live-tz"><span>Times shown in</span><select id="sv-live-tz-select">'
+      + list.map((z) => '<option value="' + escHtml(z[0]) + '"' + (z[0] === current ? ' selected' : '') + '>' + escHtml(z[1]) + '</option>').join('')
+      + '</select></label>';
+  }
+
   function renderLivePage(page) {
+    const body = page.querySelector('.sv-live-body');
+    if (!body) return;
     const rows = page._rows || LIVE_CLASSES_DEFAULT;
     const now = Date.now();
-    page.innerHTML = '<div class="sv-live-grid">' + rows.map((r) => renderLiveCard(r, now)).join('') + '</div>' + renderLiveRecordings(rows);
+    const zone = liveZone();
+    body.innerHTML = '<div class="sv-live-grid">' + rows.map((r) => renderLiveCard(r, now, zone)).join('') + '</div>' + renderLiveRecordings(rows);
   }
 
   async function loadLiveClasses(page) {
@@ -1203,6 +1255,13 @@
       page = document.createElement('div');
       page.id = 'sv-live';
       page._rows = LIVE_CLASSES_DEFAULT;
+      page.innerHTML = '<div class="sv-live-body"></div>' + liveZonePickerHtml();
+      page.addEventListener('change', (e) => {
+        if (e.target && e.target.id === 'sv-live-tz-select') {
+          try { localStorage.setItem(LIVE_TZ_KEY, e.target.value); } catch (err) { /* private mode: lasts until reload */ }
+          renderLivePage(page);
+        }
+      });
       layout.insertBefore(page, body);
       renderLivePage(page);
       loadLiveClasses(page);
@@ -1795,6 +1854,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();
