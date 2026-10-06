@@ -127,3 +127,20 @@ describe('free member (not enrolled): no native Complete button, we supply our o
     expect(document.getElementById('sv-trigger-complete-btn')).toBeNull();
   });
 });
+
+describe('regression: an already-existing completion row (unique-key conflict) must not block the celebration', () => {
+  it('still shows the celebration when saving answers "duplicate key" (23505)', async () => {
+    vi.useFakeTimers();
+    const { mountUI } = loadApp({
+      fixture: 'full-lesson-page',
+      supabaseOverrides: { upsertResult: { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } } },
+    });
+    mountUI();
+    document.getElementById('sv-trigger-complete-btn').click();
+    await vi.advanceTimersByTimeAsync(1500);
+    await waitForMicrotasks();
+    await waitForMicrotasks();
+    expect(document.getElementById('sv-celebration-modal-wrap')).not.toBeNull();
+    vi.useRealTimers();
+  });
+});

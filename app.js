@@ -744,11 +744,13 @@
       .from('lesson_completions')
       .upsert([{ user_id: uid, user_name: user.name, lesson_id: lessonId }], { onConflict: 'user_id,lesson_id' });
 
-    if (upsertErr) {
+    // 23505 = a row for this lesson already exists (e.g. an old name-keyed one): the lesson IS done,
+    // so carry on with the celebration instead of leaving the learner with nothing.
+    if (upsertErr && upsertErr.code !== '23505') {
       console.error('[SV celebrate] upsert into lesson_completions failed:', upsertErr.message, upsertErr);
       return;
     }
-    console.log('[SV celebrate] upsert into lesson_completions succeeded');
+    console.log('[SV celebrate] lesson_completions saved' + (upsertErr ? ' (already existed)' : ''));
 
     const { data: completions, error: selectErr } = await supabase
       .from('lesson_completions')
