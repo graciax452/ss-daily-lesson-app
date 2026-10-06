@@ -1390,7 +1390,22 @@
   // A lesson the person does not have yet: FluentCommunity prints "This lesson is currently locked".
   // Swap that for one calm line and a single button; the plans stay a click away, never in the way.
   const _ownDone = new Set();    // lessons a free member has marked complete (kept in our own table)
-  const _ownChecked = new Set(); // lessons already looked up this page load
+  const _ownChecked = new Set(); // lesson slugs already looked up this page load
+  const _ownIdBySlug = {};
+
+  function lessonSlugFromUrl() {
+    const m = /\/lessons\/([^/?#]+)/.exec(window.location.pathname || '');
+    return m ? m[1].toLowerCase() : '';
+  }
+
+  // FluentCommunity's numeric lesson id for an address slug like "day-1", from the course list.
+  async function resolveLessonIdBySlug(slug) {
+    if (_ownIdBySlug[slug]) return _ownIdBySlug[slug];
+    const course = await getCourse();
+    const hit = course && course.lessons.find((l) => String(l.url || '').toLowerCase().indexOf('/lessons/' + slug) !== -1);
+    if (hit) _ownIdBySlug[slug] = String(hit.id);
+    return _ownIdBySlug[slug] || '';
+  }
 
   function mountLockedLesson() {
     const locker = document.querySelector('.fcom_locked_container .fcom_locker');
@@ -1529,15 +1544,19 @@
       // A free member (not enrolled) has no native Complete button, so completion is kept in our own
       // table. Signed-out visitors get none: ticking a lesson needs an account.
       const ownMode = !nativeComplete && !isSignedOutPage();
-      const ownId = String(getLessonId() || '');
-      if (ownMode && ownId) {
-        if (_ownDone.has(ownId)) isCompleted = true;
-        else if (!_ownChecked.has(ownId)) {
-          _ownChecked.add(ownId);
-          ensureAuth().then((uid) => (uid
-            ? supabase.from('lesson_completions').select('lesson_id').eq('user_id', uid).eq('lesson_id', ownId)
-            : null)).then((r) => {
-            if (r && r.data && r.data.length) { _ownDone.add(ownId); scheduleMountUI(); }
+      // The lesson's real id comes from the course list by its address (the page itself does not
+      // expose it to a free member), so every lesson keeps its own tick.
+      const ownSlug = lessonSlugFromUrl();
+      if (ownMode && ownSlug) {
+        const ownId = _ownIdBySlug[ownSlug];
+        if (ownId && _ownDone.has(ownId)) isCompleted = true;
+        else if (!_ownChecked.has(ownSlug)) {
+          _ownChecked.add(ownSlug);
+          resolveLessonIdBySlug(ownSlug).then(async (id) => {
+            const uid = await ensureAuth();
+            if (!id || !uid) return;
+            const r = await supabase.from('lesson_completions').select('lesson_id').eq('user_id', uid).eq('lesson_id', id);
+            if (r && r.data && r.data.length) { _ownDone.add(id); scheduleMountUI(); }
           }).catch(() => {});
         }
       }
@@ -1614,8 +1633,14 @@
           // stuck) gives FluentCommunity's own course-progress bar time to
           // recalculate after its native completion AJAX call, since reading
           // it at the instant of the click was grabbing the stale value.
+          if (ownMode) {
+            resolveLessonIdBySlug(ownSlug).then((id) => {
+              if (!id) return; // never guess an id: a wrong one would tick another lesson
+              _ownDone.add(id); celebrateLessonCompletion(id); scheduleMountUI();
+            });
+            return;
+          }
           const targetLessonId = getLessonId();
-          if (ownMode) { _ownDone.add(String(targetLessonId)); celebrateLessonCompletion(targetLessonId); scheduleMountUI(); return; }
           setTimeout(() => celebrateLessonCompletion(targetLessonId), 1500);
         });
 
@@ -2111,6 +2136,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_NAME, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { resolveLessonIdBySlug, ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_NAME, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();

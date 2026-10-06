@@ -334,3 +334,13 @@ describe('Home: only published lessons, clean title (D1)', () => {
     expect(document.querySelectorAll('#sv-feed-dashboard .sv-dash-sq').length).toBeGreaterThan(27);
   });
 });
+
+describe('free member: each lesson keeps its own id (regression: marking Zuva 0 complete ticked every lesson)', () => {
+  it('resolves the real FluentCommunity id from the lesson address, a different one per lesson, and never guesses', async () => {
+    mockCourse({ enrolled: false });
+    const { resolveLessonIdBySlug } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    expect(await resolveLessonIdBySlug('day-1')).toBe('11');
+    expect(await resolveLessonIdBySlug('day-2')).toBe('12');
+    expect(await resolveLessonIdBySlug('no-such-lesson')).toBe('');
+  });
+});
