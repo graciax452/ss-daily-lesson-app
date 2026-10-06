@@ -26,7 +26,7 @@ describe('getMonthCompletionMap()', () => {
 
   it('marks exactly the reference date as isToday, regardless of completion status', () => {
     const { getMonthCompletionMap } = loadApp();
-    const { days } = getMonthCompletionMap([], new Date('2026-06-20'));
+    const { days } = getMonthCompletionMap([], new Date(2026, 5, 20));
 
     const todayDays = days.filter((d) => d && d.isToday).map((d) => d.day);
     expect(todayDays).toEqual([20]);

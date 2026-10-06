@@ -43,10 +43,12 @@
   // property-based tests proving its behavior; duplicated here for the same
   // no-shared-file reason as getUserInfo() above.
   function calculateStreak(completedAtList, referenceDate = new Date()) {
-    const daySet = new Set(completedAtList.map((d) => new Date(d).toISOString().slice(0, 10)));
+    // Days are the learner's LOCAL days (a UTC day would count an evening lesson for tomorrow).
+    const dayKey = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const daySet = new Set(completedAtList.map((d) => dayKey(new Date(d))));
     let streak = 0;
     const cursor = new Date(referenceDate);
-    while (daySet.has(cursor.toISOString().slice(0, 10))) {
+    while (daySet.has(dayKey(cursor))) {
       streak++;
       cursor.setDate(cursor.getDate() - 1);
     }

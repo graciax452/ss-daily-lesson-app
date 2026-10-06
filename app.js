@@ -118,13 +118,33 @@
 
   // Progress over real lessons only. justCompletedId covers the lesson being completed right
   // now, which FluentCommunity's cached course data doesn't know about yet.
-  function lessonProgress(course, justCompletedId) {
+  function lessonProgress(course, justCompletedId, extraDoneIds = []) {
     const lessons = ((course && course.lessons) || []).filter((l) => !isOnboardingLesson(l));
-    const done = new Set((course && course.completedIds) || []);
+    // FluentCommunity's own ticks plus the ones we hold ourselves (free members have none there)
+    const done = new Set(((course && course.completedIds) || []).concat(extraDoneIds).map(String));
     if (justCompletedId) done.add(String(justCompletedId));
-    const completed = lessons.filter((l) => done.has(l.id)).length;
+    const completed = lessons.filter((l) => done.has(String(l.id))).length;
     const total = lessons.length;
     return { completed, total, pct: total ? Math.round((completed / total) * 100) : 0 };
+  }
+
+  // Zuva number of a lesson page: the number in its address (day-3) or title (Zuva 3 — ...), never
+  // FluentCommunity's own "Lesson X of Y", which counts onboarding and so runs a day ahead.
+  function zuvaNumberForPage(slug, title) {
+    const m = /^(?:day|zuva)-(d+)$/i.exec(String(slug || ''));
+    if (m) return parseInt(m[1], 10);
+    return zuvaFromTitle(title);
+  }
+
+  // What the celebration's Next button does. Completing a lesson can already have moved the page on
+  // (FluentCommunity advances by itself), so only go forward if the page is still on the lesson that
+  // was just completed; otherwise just close, or a lesson gets skipped.
+  function celebrationNextStep({ completedId, currentId, course }) {
+    const lessons = (course && course.lessons) || [];
+    const i = lessons.findIndex((l) => String(l.id) === String(completedId));
+    const next = i >= 0 ? lessons[i + 1] : null;
+    if (!next || String(currentId) !== String(completedId)) return { action: 'stay' };
+    return { action: 'advance', url: next.url };
   }
 
   // Rotating encouragement under the progress ring. Add Shona lines here any time.
@@ -675,7 +695,8 @@
   // Which of the 7 days in the Monday-Sunday week containing referenceDate
   // had at least one completion. Returns [Mon, Tue, Wed, Thu, Fri, Sat, Sun].
   function getWeekCompletionMap(completedAtList, referenceDate = new Date()) {
-    const daySet = new Set(completedAtList.map((d) => new Date(d).toISOString().slice(0, 10)));
+    // LOCAL days: a UTC day would light tomorrow's dot for an evening lesson.
+    const daySet = new Set(completedAtList.map((d) => localDay(new Date(d))));
     const ref = new Date(referenceDate);
     const daysSinceMonday = (ref.getDay() + 6) % 7;
     const monday = new Date(ref);
@@ -685,7 +706,7 @@
     for (let i = 0; i < 7; i++) {
       const d = new Date(monday);
       d.setDate(d.getDate() + i);
-      week.push(daySet.has(d.toISOString().slice(0, 10)));
+      week.push(daySet.has(localDay(d)));
     }
     return week;
   }
@@ -695,25 +716,24 @@
   // W T F S header the Home dashboard renders), then one entry per real day
   // with its done/isToday status.
   function getMonthCompletionMap(completedAtList, referenceDate = new Date()) {
-    const daySet = new Set(completedAtList.map((d) => new Date(d).toISOString().slice(0, 10)));
+    const daySet = new Set(completedAtList.map((d) => localDay(new Date(d))));
 
-    // Everything below derives from the same UTC calendar day, rather than
-    // mixing local-time getFullYear()/getMonth() with UTC-based date-key
-    // comparisons - that mix breaks right at UTC-midnight referenceDates,
-    // where the local calendar day and the UTC calendar day disagree.
-    const todayKey = new Date(referenceDate).toISOString().slice(0, 10);
-    const [year, month] = todayKey.split('-').map(Number);
-    const monthIndex = month - 1; // 0-indexed, to match Date's own convention
+    // Everything derives from the learner's LOCAL calendar day (a UTC day is a day early or late
+    // for anyone west or east of Greenwich).
+    const ref = new Date(referenceDate);
+    const todayKey = localDay(ref);
+    const year = ref.getFullYear();
+    const monthIndex = ref.getMonth(); // 0-indexed, to match Date's own convention
 
-    const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-    const startWeekday = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay();
+    const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+    const startWeekday = new Date(year, monthIndex, 1).getDay();
 
     const days = [];
     for (let i = 0; i < startWeekday; i++) {
       days.push(null);
     }
     for (let d = 1; d <= daysInMonth; d++) {
-      const key = new Date(Date.UTC(year, monthIndex, d)).toISOString().slice(0, 10);
+      const key = localDay(new Date(year, monthIndex, d));
       days.push({ day: d, done: daySet.has(key), isToday: key === todayKey });
     }
 
@@ -724,10 +744,10 @@
   // one completion. referenceDate defaults to now in production; tests pass
   // a fixed date so results are deterministic.
   function calculateStreak(completedAtList, referenceDate = new Date()) {
-    const daySet = new Set(completedAtList.map((d) => new Date(d).toISOString().slice(0, 10)));
+    const daySet = new Set(completedAtList.map((d) => localDay(new Date(d))));
     let streak = 0;
     const cursor = new Date(referenceDate);
-    while (daySet.has(cursor.toISOString().slice(0, 10))) {
+    while (daySet.has(localDay(cursor))) {
       streak++;
       cursor.setDate(cursor.getDate() - 1);
     }
@@ -754,7 +774,7 @@
 
     const { data: completions, error: selectErr } = await supabase
       .from('lesson_completions')
-      .select('completed_at')
+      .select('lesson_id, completed_at')
       .eq('user_id', uid);
 
     if (selectErr) {
@@ -766,12 +786,30 @@
     const weekMap = getWeekCompletionMap(completedDates);
     const lessonNumber = getLessonNumber();
     const course = await getCourse();
-    const prog = course ? lessonProgress(course, lessonId) : null;
+    const doneLesson = course && course.lessons.find((l) => String(l.id) === String(lessonId));
+
+    // Zuva 0 (onboarding) is saved but never celebrated: it is not a lesson and does not count.
+    if (isOnboardingLesson(doneLesson || { title: getLessonTitle() })) {
+      console.log('[SV celebrate] onboarding lesson saved, no celebration');
+      return 'onboarding';
+    }
+
+    const prog = course ? lessonProgress(course, lessonId, (completions || []).map((c) => c.lesson_id)) : null;
     const progress = prog ? prog.pct : getCourseProgress();
     const totalLessons = prog ? prog.total : getTotalLessonCount();
     const completedCount = prog ? prog.completed : null;
     // Manifest is prefetched on mount; never block the celebration on the network.
-    const zuva = findLessonEntry(_lessonsManifest || [], { href: window.location.href, title: getLessonTitle() });
+    // Always the lesson that was just completed (the page may already have moved on to the next one).
+    const doneSlug = doneLesson ? (/\/lessons\/([^/?#]+)/.exec(doneLesson.url) || [])[1] : lessonSlugFromUrl();
+    const doneTitle = doneLesson ? doneLesson.title : getLessonTitle();
+    const doneNo = zuvaNumberForPage(doneSlug, doneTitle);
+    const zuva = findLessonEntry(_lessonsManifest || [], { href: doneLesson ? doneLesson.url : window.location.href, title: doneTitle })
+      || (doneNo !== null ? { zuva: doneNo } : null);
+    const currentSlug = lessonSlugFromUrl();
+    const currentId = currentSlug ? await resolveLessonIdBySlug(currentSlug) : getLessonId();
+    const nextStep = celebrationNextStep({ completedId: lessonId, currentId, course });
+    const doneIdx = course ? course.lessons.findIndex((l) => String(l.id) === String(lessonId)) : -1;
+    const moreAfter = !!(course && doneIdx >= 0 && doneIdx < course.lessons.length - 1);
     console.log('[SV celebrate] streak:', streak, 'progress:', progress, 'lessonNumber:', lessonNumber, 'totalLessons:', totalLessons);
 
     const { data: existingMissions, error: missionsErr } = await supabase
@@ -787,10 +825,11 @@
     const hasSubmittedMission = existingMissions && existingMissions.length > 0;
     console.log('[SV celebrate] hasSubmittedMission:', hasSubmittedMission, '- showing modal now');
 
-    showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, completedCount, hasSubmittedMission, zuva });
+    showCelebrationModal({ lessonNumber: zuva ? null : lessonNumber, streak, weekMap, progress, totalLessons, completedCount, hasSubmittedMission, zuva, nextStep, moreAfter });
+    return 'celebrated';
   }
 
-  function showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, completedCount = null, hasSubmittedMission, zuva = null }) {
+  function showCelebrationModal({ lessonNumber, streak, weekMap, progress, totalLessons, completedCount = null, hasSubmittedMission, zuva = null, nextStep = null, moreAfter = null }) {
     let wrap = document.getElementById('sv-celebration-modal-wrap');
     if (!wrap) {
       wrap = document.createElement('div');
@@ -844,9 +883,14 @@
     }).join('');
 
     const nextBtn = document.querySelector('.fcom_lesson_header .fcom_lesson_nav button[aria-label="Next lesson"]');
-    const hasNext = !!(nextBtn && nextBtn.getAttribute('aria-disabled') !== 'true');
+    const hasNext = nextStep
+      ? nextStep.action === 'advance'
+      : !!(nextBtn && nextBtn.getAttribute('aria-disabled') !== 'true');
     const nextZuva = zuva && (_lessonsManifest || []).find((l) => l.zuva === zuva.zuva + 1);
-    const nextLabel = !hasNext ? 'Done for today' : (nextZuva ? `Next: Zuva ${nextZuva.zuva} →` : 'Next lesson →');
+    // 'stay' with more lessons ahead means the page already moved on by itself: just carry on.
+    const nextLabel = nextStep && !hasNext && moreAfter
+      ? 'Keep going →'
+      : (!hasNext ? 'Done for today' : (nextZuva ? `Next: Zuva ${nextZuva.zuva} →` : 'Next lesson →'));
 
     wrap.innerHTML = `
       <div class="sv-modal-card sv-celebration-card">
@@ -917,7 +961,9 @@
 
     document.getElementById('sv-celebration-continue')?.addEventListener('click', () => {
       wrap.classList.remove('is-active');
-      if (hasNext) nextBtn.click();
+      if (!hasNext) return;
+      if (nextStep && nextStep.url) window.location.assign(nextStep.url);
+      else if (nextBtn) nextBtn.click();
     });
 
     document.getElementById('sv-celebration-submit-mission')?.addEventListener('click', () => {
@@ -1394,6 +1440,7 @@
   const _ownDone = new Set();    // lessons a free member has marked complete (kept in our own table)
   const _ownChecked = new Set(); // lesson slugs already looked up this page load
   const _ownIdBySlug = {};
+  const _ownResolved = new Set(); // lesson slugs whose "already done?" check has finished
 
   // Someone who did lessons as a free member and then joined: FluentCommunity has no ticks for them,
   // so tick those lessons there too (its own PUT, the same call its Complete button makes). Nothing
@@ -1586,8 +1633,8 @@
             const uid = await ensureAuth();
             if (!id || !uid) return;
             const r = await supabase.from('lesson_completions').select('lesson_id').eq('user_id', uid).eq('lesson_id', id);
-            if (r && r.data && r.data.length) { _ownDone.add(id); scheduleMountUI(); }
-          }).catch(() => {});
+            if (r && r.data && r.data.length) _ownDone.add(id);
+          }).catch(() => {}).then(() => { _ownResolved.add(ownSlug); scheduleMountUI(); });
         }
       }
 
@@ -1635,7 +1682,7 @@
           rightBtnHtml = `<button type="button" class="sv-btn sv-btn-next" id="sv-trigger-next-btn">${svIconCheck} Complete ${svIconArrow}</button>`;
       } else if (isCompleted && !nativeNext) {
           rightBtnHtml = `<button type="button" class="sv-btn sv-btn-done" disabled>${svIconCheck} Lesson Completed</button>`;
-      } else if (!isCompleted && (nativeComplete || ownMode)) {
+      } else if (!isCompleted && (nativeComplete || (ownMode && (!ownSlug || _ownResolved.has(ownSlug))))) {
           rightBtnHtml = `<button type="button" class="sv-btn sv-btn-complete" id="sv-trigger-complete-btn">${svIconCircle} Mark Lesson Complete</button>`;
       }
 
@@ -1666,7 +1713,13 @@
           if (ownMode) {
             resolveLessonIdBySlug(ownSlug).then((id) => {
               if (!id) return; // never guess an id: a wrong one would tick another lesson
-              _ownDone.add(id); celebrateLessonCompletion(id); scheduleMountUI();
+              _ownDone.add(id);
+              scheduleMountUI();
+              celebrateLessonCompletion(id).then(async (r) => {
+                if (r !== 'onboarding') return;
+                const step = celebrationNextStep({ completedId: id, currentId: id, course: await getCourse() });
+                if (step.action === 'advance') window.location.assign(step.url);
+              });
             });
             return;
           }
@@ -2168,6 +2221,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { syncOwnCompletions, resolveLessonIdBySlug, ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_NAME, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { celebrationNextStep, zuvaNumberForPage, lessonProgress, celebrateLessonCompletion, syncOwnCompletions, resolveLessonIdBySlug, ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_NAME, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();
