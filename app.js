@@ -1393,6 +1393,32 @@
   const _ownChecked = new Set(); // lesson slugs already looked up this page load
   const _ownIdBySlug = {};
 
+  // Someone who did lessons as a free member and then joined: FluentCommunity has no ticks for them,
+  // so tick those lessons there too (its own PUT, the same call its Complete button makes). Nothing
+  // is deleted or redone by hand. Runs once per page load and never throws.
+  let _syncedOwn = false;
+  async function syncOwnCompletions(course, courseRows) {
+    if (_syncedOwn || !course || !course.isEnrolled || !course.id) return;
+    const a = window.fluentComAdmin;
+    const rest = a && a.rest;
+    if (!rest || !rest.url) return;
+    const have = new Set(course.completedIds.map(String));
+    const inCourse = new Set(course.lessons.map((l) => String(l.id)));
+    const missing = courseRows.map((r) => String(r.lesson_id)).filter((id) => inCourse.has(id) && !have.has(id));
+    if (!missing.length) return;
+    _syncedOwn = true;
+    for (const id of Array.from(new Set(missing))) {
+      try {
+        await fetch(rest.url + '/courses/' + course.id + '/lessons/' + id + '/completion', {
+          method: 'PUT',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, rest.nonce ? { 'X-WP-Nonce': rest.nonce } : {}),
+          credentials: 'include',
+          body: JSON.stringify({ state: 'completed' }),
+        });
+      } catch (e) { /* try again next visit */ }
+    }
+  }
+
   function lessonSlugFromUrl() {
     const m = /\/lessons\/([^/?#]+)/.exec(window.location.pathname || '');
     return m ? m[1].toLowerCase() : '';
@@ -1815,6 +1841,7 @@
         const json = await res.json();
         const track = json.track || {};
         return {
+          id: json.course && json.course.id,
           isEnrolled: !!(track.isEnrolled !== undefined ? track.isEnrolled : json.course && json.course.isEnrolled),
           completedIds: (track.completed_lessons || []).map(String),
           lessons: flattenCourseLessons(json, a.portal_url),
@@ -1991,6 +2018,7 @@
     // manifest (empty) is only the fallback when the REST API can't be reached.
     const courseLessons = course ? course.lessons : FEED_DASHBOARD_LESSONS;
     const courseRows = filterCompletionsForCourse(rows, courseLessons);
+    syncOwnCompletions(course, courseRows);
     const onboardingIds = new Set(courseLessons.filter(isOnboardingLesson).map((l) => String(l.id)));
     const completedIds = course ? Array.from(new Set(course.completedIds.concat(courseRows.map((r) => String(r.lesson_id))))) : courseRows.map((r) => r.lesson_id);
     // Onboarding still counts as 'done' when finding the next lesson, but not in the ✓ total.
@@ -2136,6 +2164,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { resolveLessonIdBySlug, ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_NAME, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { syncOwnCompletions, resolveLessonIdBySlug, ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_NAME, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();

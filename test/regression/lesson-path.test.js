@@ -344,3 +344,21 @@ describe('free member: each lesson keeps its own id (regression: marking Zuva 0 
     expect(await resolveLessonIdBySlug('no-such-lesson')).toBe('');
   });
 });
+
+describe('free member who then joins: their finished lessons are ticked in FluentCommunity too', () => {
+  it('PUTs a completion for each lesson done as a free member that FluentCommunity does not know about (nothing deleted)', async () => {
+    mockCourse({ enrolled: true, completed: ['11'] });
+    const calls = [];
+    const base = globalThis.fetch;
+    globalThis.fetch = async (url, opts) => { if (opts && opts.method === 'PUT') calls.push(url); return base(url, opts); };
+    const { syncOwnCompletions, getCourse } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    const course = await getCourse();
+    course.id = 24;
+    await syncOwnCompletions(course, [
+      { lesson_id: '11' },   // already ticked in FluentCommunity
+      { lesson_id: '12' },   // done as a free member only
+      { lesson_id: '999' },  // another course
+    ]);
+    expect(calls).toEqual(['https://speakshona.com/wp-json/fluent-community/v2/courses/24/lessons/12/completion']);
+  });
+});
