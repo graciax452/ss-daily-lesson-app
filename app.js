@@ -1716,6 +1716,7 @@
   // at the first lesson they have not been given. No lesson count is ever printed in the copy.
   const SIGNUP_URL = 'https://speakshona.com/pinda';
   const isSignedOutPage = () => !!document.querySelector('.fcom_login_btn');
+  const dashCacheKey = () => 'sv_dash_' + (isSignedOutPage() ? 'out' : 'in');
 
   // Flattens FluentCommunity's courses/{slug}/by-slug response into lessons in course order.
   function flattenCourseLessons(resp, portalUrl) {
@@ -1887,11 +1888,24 @@
     banner.id = 'sv-feed-dashboard';
     feedBox.insertBefore(banner, feedBox.firstChild);
 
+    // Lesson pages open slowly: answer the click straight away so it never looks like it did nothing.
+    banner.addEventListener('click', (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+      const a = e.target.closest && e.target.closest('a.sv-dash-lesson-card, a.sv-dash-lesson-btn');
+      if (!a || a.classList.contains('sv-dash-opening')) return;
+      a.classList.add('sv-dash-opening');
+      const label = a.classList.contains('sv-dash-lesson-card') ? a.querySelector('.sv-dash-lesson-go') : a;
+      if (label) label.textContent = 'Opening…';
+    });
+
     renderFeedDashboardContent(banner);
   }
 
   async function renderFeedDashboardContent(banner) {
-    banner.innerHTML = '<div style="text-align:center; padding:20px 0; color:var(--sv-text-muted);">Loading your progress...</div>';
+    // Slow connection: show what this browser showed last time straight away, then refresh it.
+    let cached = '';
+    try { cached = localStorage.getItem(dashCacheKey()) || ''; } catch (e) { cached = ''; }
+    banner.innerHTML = cached || '<div style="text-align:center; padding:20px 0; color:var(--sv-text-muted);">Loading your progress...</div>';
 
     const uid = await ensureAuth();
     const [course, , completionsRes] = await Promise.all([
@@ -2001,7 +2015,8 @@
         </div>
       </div>`;
 
-    banner.innerHTML = `
+    // Signed out there is nothing to count yet: no ticks, flame or map, just the start card.
+    const statsHtml = isSignedOutPage() ? '' : `
       <div class="sv-dash-stats">
         <div class="sv-dash-stat">
           <span class="sv-dash-stat-icon sv-dash-stat-icon-check">${svIconCheck}</span>
@@ -2012,10 +2027,14 @@
           <span class="sv-dash-stat-value">${streak}</span>
         </div>
         <a class="sv-dash-curriculum-btn" href="${FEED_DASHBOARD_COURSE_URL}" aria-label="View curriculum">${svIconMap}</a>
-      </div>
+      </div>`;
+
+    banner.innerHTML = `
+      ${statsHtml}
       ${lessonCard}
       ${monthHtml}
     `;
+    try { localStorage.setItem(dashCacheKey(), banner.innerHTML); } catch (e) { /* private window etc. */ }
   }
 
   // Debounce mountUI(): a single lesson navigation can fire many DOM mutations

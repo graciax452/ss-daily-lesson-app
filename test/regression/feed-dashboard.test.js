@@ -128,6 +128,38 @@ describe('Feed page dashboard banner (mounts into the real portal shell, not a s
     expect(btn.getAttribute('href')).toContain('/pinda?redirect_to=');
   });
 
+  it('signed out: no tick / flame / map icons, only the start card', async () => {
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    document.body.insertAdjacentHTML('beforeend', '<a class="fcom_login_btn" href="https://speakshona.com/pinda"></a>');
+    mountUI();
+    await waitForMicrotasks();
+
+    expect(document.querySelector('#sv-feed-dashboard .sv-dash-stats')).toBeNull();
+    expect(document.querySelector('#sv-feed-dashboard .sv-dash-lesson-btn')).not.toBeNull();
+  });
+
+  it('clicking the start button answers straight away ("Opening…") because lesson pages load slowly', async () => {
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    document.body.insertAdjacentHTML('beforeend', '<a class="fcom_login_btn" href="https://speakshona.com/pinda"></a>');
+    mountUI();
+    await waitForMicrotasks();
+
+    const btn = document.querySelector('#sv-feed-dashboard .sv-dash-lesson-btn');
+    btn.addEventListener('click', (e) => e.preventDefault());
+    btn.click();
+    expect(btn.textContent).toBe('Opening…');
+  });
+
+  it('shows what was on screen last time straight away while the fresh data loads', async () => {
+    localStorage.setItem('sv_dash_in', '<div id="from-cache">cached card</div>');
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    mountUI();
+    expect(document.getElementById('from-cache')).not.toBeNull();
+    await waitForMicrotasks();
+    expect(document.getElementById('from-cache')).toBeNull();
+    localStorage.clear();
+  });
+
   it('brand-new learners get no month squares (nothing to show yet)', async () => {
     const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
     mountUI();
