@@ -1460,6 +1460,18 @@
   // so tick those lessons there too (its own PUT, the same call its Complete button makes). Nothing
   // is deleted or redone by hand. Runs once per page load and never throws.
   let _syncedOwn = false;
+  let _syncKicked = false;
+
+  // Reads this person's saved completions and ticks any that FluentCommunity is missing (enrolled only).
+  async function syncMyCompletions() {
+    try {
+      const uid = await ensureAuth();
+      const course = uid ? await getCourse() : null;
+      if (!uid || !course || !course.isEnrolled) return;
+      const r = await supabase.from('lesson_completions').select('lesson_id').eq('user_id', uid);
+      await syncOwnCompletions(course, filterCompletionsForCourse((r && r.data) || [], course.lessons));
+    } catch (e) { /* try again next visit */ }
+  }
   async function syncOwnCompletions(course, courseRows) {
     if (_syncedOwn || !course || !course.isEnrolled || !course.id) return;
     const a = window.fluentComAdmin;
@@ -1638,7 +1650,9 @@
       // The lesson's real id comes from the course list by its address (the page itself does not
       // expose it to a free member), so every lesson keeps its own tick.
       const ownSlug = lessonSlugFromUrl();
-      if (ownMode && ownSlug) {
+      // Someone who joined after doing lessons as a free member: tell FluentCommunity about those once.
+      if (nativeComplete && !_syncKicked) { _syncKicked = true; syncMyCompletions(); }
+      if (!isSignedOutPage() && ownSlug) {
         const ownId = _ownIdBySlug[ownSlug];
         if (ownId && _ownDone.has(ownId)) isCompleted = true;
         else if (!_ownChecked.has(ownSlug)) {
@@ -1735,8 +1749,11 @@
             });
             return;
           }
-          const targetLessonId = getLessonId();
-          setTimeout(() => celebrateLessonCompletion(targetLessonId), 1500);
+          // The real id comes from the course list by address; the page's own guess is only a fallback
+          resolveLessonIdBySlug(ownSlug).then((id) => {
+            const targetLessonId = id || getLessonId();
+            setTimeout(() => celebrateLessonCompletion(targetLessonId), 1500);
+          });
         });
 
         document.getElementById('sv-trigger-next-btn')?.addEventListener('click', () => {
