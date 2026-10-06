@@ -1009,6 +1009,29 @@
     return li;
   }
 
+  // Courses that only the people enrolled in them (and admins) should see in the sidebar — the camp and
+  // cohort replays hold other families' recordings. Add a slug (the /course/<slug>/ part) to hide more.
+  const ENROLLED_ONLY_COURSES = ['replays'];
+  const _enrolledState = {};   // slug -> true | false once known
+  const _enrolledAsked = {};   // slug -> true once the check has started
+
+  // Asks FluentCommunity whether this person is enrolled in a course. false when it cannot tell.
+  async function isEnrolledIn(slug) {
+    const a = window.fluentComAdmin;
+    const rest = a && a.rest;
+    if (!rest || !rest.url || typeof fetch !== 'function') return false;
+    try {
+      const res = await fetch(rest.url + '/courses/' + encodeURIComponent(slug) + '/by-slug', {
+        headers: rest.nonce ? { 'X-WP-Nonce': rest.nonce } : {},
+        credentials: 'include',
+      });
+      if (!res.ok) return false;
+      const json = await res.json();
+      const track = json.track || {};
+      return !!(track.isEnrolled !== undefined ? track.isEnrolled : json.course && json.course.isEnrolled);
+    } catch (e) { return false; }
+  }
+
   function mountSidebar() {
     const wrap = document.getElementById('fcom_sidebar_wrap');
     if (!wrap) return;
@@ -1031,6 +1054,19 @@
       if (firstList.firstElementChild !== home) firstList.insertBefore(home, firstList.firstChild);
       if (home.nextElementSibling !== community) firstList.insertBefore(community, home.nextSibling);
     }
+
+    // enrolled-only courses (camp / cohort replays): hidden until we know this person is enrolled
+    ENROLLED_ONLY_COURSES.forEach((slug) => {
+      const a = wrap.querySelector('a.fcom_space_' + slug);
+      const li = a && a.closest('li');
+      if (!li) return;
+      const show = _enrolledState[slug] === true || getUserInfo().isAdmin;
+      li.classList.toggle('sv-side-hidden', !show);
+      if (!show && !_enrolledAsked[slug]) {
+        _enrolledAsked[slug] = true;
+        isEnrolledIn(slug).then((ok) => { _enrolledState[slug] = ok; if (ok) scheduleMountUI(); });
+      }
+    });
 
     // Live Classes goes last, after the courses
     const lists = wrap.querySelectorAll('.fcom_communities_menu nav ul');
@@ -1879,6 +1915,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_COURSES, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();

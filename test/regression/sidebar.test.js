@@ -13,10 +13,10 @@ const labels = () => Array.from(document.querySelectorAll('#fcom_sidebar_wrap .s
   .map((li) => li.querySelector('.community_name').textContent);
 
 describe('Left sidebar', () => {
-  it('shows Home, Community, the courses, then Live Classes last — the community spaces are hidden', () => {
+  it('shows Home, Community, the open courses, then Live Classes last — community spaces and the enrolled-only Replays are hidden', () => {
     const { mountUI } = loadApp({ fixture: 'sidebar', bodyAttrs: { 'data-route': 'all_feeds' } });
     mountUI();
-    expect(labels()).toEqual(['Home', 'Community', 'Daily Shona Lessons', 'Replays (camps and cohorts)', 'YouTube Lessons in Order', 'Live Classes']);
+    expect(labels()).toEqual(['Home', 'Community', 'Daily Shona Lessons', 'YouTube Lessons in Order', 'Live Classes']);
     // hidden, not removed (Vue keeps managing them)
     ['say-hello', 'rules', 'general'].forEach((slug) => {
       const li = document.querySelector('a.fcom_space_' + slug).closest('li');
@@ -85,6 +85,34 @@ describe('Left sidebar', () => {
     app = loadApp({ fixture: 'sidebar', bodyAttrs: { 'data-route': 'all_feeds' } });
     app.mountUI();
     expect(document.getElementById('sv-side-live-buy')).toBeNull();
+  });
+
+  it('shows the Replays course to someone enrolled in it, once FluentCommunity says so', async () => {
+    window.fluentComAdmin = { rest: { url: 'https://speakshona.com/wp-json/fluent-community/v2', nonce: 'n' } };
+    let asked = '';
+    globalThis.fetch = async (url) => { asked = url; return { ok: true, json: async () => ({ track: { isEnrolled: true }, sections: [] }) }; };
+    const { mountUI, isEnrolledIn } = loadApp({ fixture: 'sidebar', bodyAttrs: { 'data-route': 'all_feeds' } });
+    mountUI();
+    expect(document.querySelector('a.fcom_space_replays').closest('li').classList.contains('sv-side-hidden')).toBe(true); // hidden until known
+    await new Promise((r) => setTimeout(r, 300));
+    mountUI();
+    expect(asked).toContain('/courses/replays/by-slug');
+    expect(document.querySelector('a.fcom_space_replays').closest('li').classList.contains('sv-side-hidden')).toBe(false);
+    delete globalThis.fetch; delete window.fluentComAdmin;
+  });
+
+  it('keeps Replays hidden when not enrolled, when the lookup fails, or when logged out', async () => {
+    const { isEnrolledIn } = loadApp();
+    window.fluentComAdmin = { rest: { url: 'https://x/v2' } };
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ track: { isEnrolled: false } }) });
+    expect(await isEnrolledIn('replays')).toBe(false);
+    globalThis.fetch = async () => ({ ok: false });
+    expect(await isEnrolledIn('replays')).toBe(false);
+    globalThis.fetch = async () => { throw new Error('offline'); };
+    expect(await isEnrolledIn('replays')).toBe(false);
+    delete window.fluentComAdmin; // logged out: no REST info at all
+    expect(await isEnrolledIn('replays')).toBe(false);
+    delete globalThis.fetch;
   });
 
   it('does nothing on pages without the sidebar', () => {
