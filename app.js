@@ -7,7 +7,7 @@
   // Verified identity (mazwi LAUNCH.md C3). The WordPress snippet prints a signed token for the
   // logged-in member as window.MAZWI_MEMBER_TOKEN; mazwi's member-signin function turns it into
   // a real Supabase login (the same account mazwi uses). Rows are then owned by user_id, and the
-  // database rules (docs/c3-rls.sql) only let signed-in members read or write.
+  // database rules (Supabase row-level security, set up 2026-10-05) only let signed-in members read or write.
   const MEMBER_SIGNIN_URL = 'https://mazwi.app/.netlify/functions/member-signin';
   let _authP = null;
   let _uid = null;
@@ -1066,7 +1066,7 @@
   // ── Live Classes page: two class cards (kids / adults) with a countdown that turns into a Join
   // button, plus recordings buttons. Times are fixed in the teacher's time zone (Vancouver, so they
   // follow daylight saving) and shown in each learner's own time zone. The schedule below is only a
-  // fallback: the live_classes table (members-only, docs/live-classes.sql) holds the Meet links and
+  // fallback: the live_classes table (members-only, Supabase row-level security) holds the Meet links and
   // recordings links, so they are never written into this public file.
   const LIVE_JOIN_LEAD_MS = 10 * 60 * 1000; // Join opens 10 minutes before the start
   const LIVE_CLASSES_DEFAULT = [
