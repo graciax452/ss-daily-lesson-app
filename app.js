@@ -933,6 +933,7 @@
       mountFeedDashboard();
     } else if (route === 'space_feeds') {
       mountSpaceTabs();
+      mountLiveClasses();
     }
   }
 
@@ -1059,6 +1060,154 @@
       });
       const footer = document.querySelector('.fcom_side_footer');
       if (footer) footer.insertBefore(links, footer.firstChild); else wrap.appendChild(links);
+    }
+  }
+
+  // ── Live Classes page: two class cards (kids / adults) with a countdown that turns into a Join
+  // button, plus recordings buttons. Times are fixed in the teacher's time zone (Vancouver, so they
+  // follow daylight saving) and shown in each learner's own time zone. The schedule below is only a
+  // fallback: the live_classes table (members-only, docs/live-classes.sql) holds the Meet links and
+  // recordings links, so they are never written into this public file.
+  const LIVE_JOIN_LEAD_MS = 10 * 60 * 1000; // Join opens 10 minutes before the start
+  const LIVE_CLASSES_DEFAULT = [
+    { id: 'kids', title: 'Kids class', blurb: 'Ages 7+', dow: 5, start: '11:45', end: '12:30', tz: 'America/Vancouver', first: '2026-10-09', meet_url: '', recordings_url: '' },
+    { id: 'adults', title: 'Adults class', blurb: 'Every level welcome', dow: 5, start: '12:45', end: '13:30', tz: 'America/Vancouver', first: '2026-10-09', meet_url: '', recordings_url: '' },
+  ];
+
+  // How far ahead of UTC a time zone is at a given moment (handles daylight saving)
+  function tzOffsetMs(ms, tz) {
+    const p = {};
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      .formatToParts(new Date(ms)).forEach((x) => { p[x.type] = x.value; });
+    const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+    return asUtc - Math.floor(ms / 1000) * 1000;
+  }
+
+  // The real moment (ms since 1970) of "2026-10-09 11:45" on the wall clock of time zone tz
+  function zonedInstant(dateStr, hhmm, tz) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const [h, min] = hhmm.split(':').map(Number);
+    const wall = Date.UTC(y, m - 1, d, h, min);
+    let t = wall - tzOffsetMs(wall, tz);
+    t = wall - tzOffsetMs(t, tz); // re-check once, right around a daylight-saving change
+    return t;
+  }
+
+  // The next session of a class that has not finished yet: { start, end } in ms, or null
+  function nextLiveSession(cls, now) {
+    const day = new Date(Math.max(now - 86400000, Date.parse(cls.first + 'T00:00:00Z')));
+    for (let i = 0; i < 400; i++) {
+      const key = day.toISOString().slice(0, 10);
+      if (day.getUTCDay() === cls.dow && key >= cls.first) {
+        const start = zonedInstant(key, cls.start, cls.tz);
+        const end = zonedInstant(key, cls.end, cls.tz);
+        if (end > now) return { start, end };
+      }
+      day.setUTCDate(day.getUTCDate() + 1);
+    }
+    return null;
+  }
+
+  function formatCountdown(ms) {
+    const mins = Math.max(0, Math.floor(ms / 60000));
+    const d = Math.floor(mins / 1440), h = Math.floor((mins % 1440) / 60), m = mins % 60;
+    return (d ? d + 'd ' : '') + (d || h ? h + 'h ' : '') + m + 'm';
+  }
+
+  // "Every Friday · 2:45 PM – 3:30 PM EDT", in the viewer's own time zone
+  function liveLocalLabel(s) {
+    const t = (ms) => new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const zone = (new Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(new Date(s.start)).find((x) => x.type === 'timeZoneName') || {}).value || '';
+    const weekday = new Date(s.start).toLocaleDateString(undefined, { weekday: 'long' });
+    return 'Every ' + weekday + ' · ' + t(s.start) + ' – ' + t(s.end) + (zone ? ' ' + zone : '');
+  }
+
+  function renderLiveCard(cls, now) {
+    const s = nextLiveSession(cls, now);
+    let action;
+    if (!s) {
+      action = '<span class="sv-live-btn sv-live-btn-off">No upcoming class</span>';
+    } else if (now >= s.start - LIVE_JOIN_LEAD_MS) {
+      action = safeUrl(cls.meet_url)
+        ? '<a class="sv-live-btn sv-live-btn-go" href="' + safeUrl(cls.meet_url) + '" target="_blank" rel="noopener noreferrer">Join class</a>'
+        : '<span class="sv-live-btn sv-live-btn-off">Join link coming</span>';
+    } else {
+      action = '<span class="sv-live-btn sv-live-btn-off">Starts in ' + formatCountdown(s.start - now) + '</span>';
+    }
+    return '<div class="sv-live-card" data-class="' + escHtml(cls.id) + '">'
+      + '<div class="sv-live-title">' + escHtml(cls.title) + '</div>'
+      + (s ? '<div class="sv-live-when">' + escHtml(liveLocalLabel(s)) + '</div>' : '')
+      + (cls.blurb ? '<div class="sv-live-blurb">' + escHtml(cls.blurb) + '</div>' : '')
+      + action + '</div>';
+  }
+
+  function renderLiveRecordings(rows) {
+    const btn = (cls, label) => safeUrl(cls && cls.recordings_url)
+      ? '<a class="sv-live-rec-btn" href="' + safeUrl(cls.recordings_url) + '">' + label + '</a>'
+      : '<span class="sv-live-rec-btn sv-live-btn-off">' + label + ' · coming soon</span>';
+    const kids = rows.find((r) => r.id === 'kids');
+    const adults = rows.find((r) => r.id === 'adults');
+    return '<div class="sv-live-rec"><div><div class="sv-live-rec-title">Recordings</div>'
+      + '<div class="sv-live-blurb">Watch any class you missed, as often as you like.</div></div>'
+      + '<div class="sv-live-rec-btns">' + btn(kids, 'Kids recordings') + btn(adults, 'Adults recordings') + '</div></div>';
+  }
+
+  function renderLivePage(page) {
+    const rows = page._rows || LIVE_CLASSES_DEFAULT;
+    const now = Date.now();
+    page.innerHTML = '<div class="sv-live-grid">' + rows.map((r) => renderLiveCard(r, now)).join('') + '</div>' + renderLiveRecordings(rows);
+  }
+
+  async function loadLiveClasses(page) {
+    let rows = LIVE_CLASSES_DEFAULT.map((r) => Object.assign({}, r));
+    try {
+      await ensureAuth();
+      const res = await supabase.from('live_classes').select('*');
+      if (!res.error && Array.isArray(res.data)) {
+        res.data.forEach((row) => {
+          const base = rows.find((r) => r.id === row.id);
+          if (!base) return;
+          Object.assign(base, {
+            title: row.title || base.title,
+            blurb: row.blurb != null ? row.blurb : base.blurb,
+            dow: row.day_of_week != null ? row.day_of_week : base.dow,
+            start: row.start_time || base.start,
+            end: row.end_time || base.end,
+            tz: row.tz || base.tz,
+            first: row.first_date || base.first,
+            meet_url: row.meet_url || '',
+            recordings_url: row.recordings_url || '',
+          });
+        });
+      }
+    } catch (e) { /* table missing or not a member: the schedule still shows, without links */ }
+    page._rows = rows;
+    renderLivePage(page);
+    if (!page._timer && typeof setInterval === 'function') {
+      page._timer = setInterval(() => {
+        if (!document.body.contains(page)) { clearInterval(page._timer); return; }
+        renderLivePage(page);
+      }, 30000);
+    }
+  }
+
+  // The Live Classes space is a static page: our cards replace its posts area (hidden, not removed).
+  function mountLiveClasses() {
+    if (getSpaceSlug() !== 'liveclass') return;
+    const layout = document.querySelector('.fhr_content_layout');
+    const body = layout && layout.querySelector('.fhr_content_layout_body');
+    if (!layout || !body) return;
+    body.style.display = 'none';
+    let page = document.getElementById('sv-live');
+    if (!page) {
+      page = document.createElement('div');
+      page.id = 'sv-live';
+      page._rows = LIVE_CLASSES_DEFAULT;
+      layout.insertBefore(page, body);
+      renderLivePage(page);
+      loadLiveClasses(page);
+    } else if (page.nextElementSibling !== body) {
+      layout.insertBefore(page, body);
     }
   }
 
@@ -1646,6 +1795,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();

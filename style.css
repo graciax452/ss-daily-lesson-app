@@ -455,6 +455,23 @@ body.sv-toc-open .sv-toc-backdrop {
 #sv-side-links a { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--sv-cream); }
 #sv-side-links img { width: 20px; height: 20px; object-fit: contain; }
 
+/* ── Live Classes page ── */
+#sv-live { max-width: 860px; margin: 24px auto; padding: 0 16px; }
+.sv-live-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .sv-live-grid { grid-template-columns: 1fr; } }
+.sv-live-card { background: #ffffff; border: 1.5px solid var(--sv-border); border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 6px; }
+.sv-live-title { font-size: 1.15rem; font-weight: 800; color: var(--sv-text-main); }
+.sv-live-when { font-weight: 700; color: var(--sv-text-main); }
+.sv-live-blurb { color: var(--sv-text-muted); font-size: 0.9rem; }
+.sv-live-btn { display: block; margin-top: 12px; padding: 12px; border-radius: 12px; text-align: center; font-weight: 700; text-decoration: none; }
+.sv-live-btn-go { background: var(--sv-orange); color: #ffffff; }
+.sv-live-btn-off { background: var(--sv-track-light); color: var(--sv-text-muted); }
+.sv-live-rec { margin-top: 16px; background: #ffffff; border: 1.5px solid var(--sv-border); border-radius: 20px; padding: 18px 22px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+.sv-live-rec-title { font-weight: 800; font-size: 1.05rem; color: var(--sv-text-main); }
+.sv-live-rec-btns { display: flex; flex-wrap: wrap; gap: 10px; }
+.sv-live-rec-btn { padding: 10px 16px; border-radius: 12px; font-weight: 700; text-decoration: none; border: 1.5px solid var(--sv-orange); color: var(--sv-orange); background: #ffffff; }
+.sv-live-rec-btn.sv-live-btn-off { border-color: transparent; }
+
 /* ── Phrase bank + mazwi button (lesson page, built from mazwi.app/lessons.json) ── */
 .sv-phrasebank {
   background: #ffffff;
