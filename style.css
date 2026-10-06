@@ -427,6 +427,20 @@ body.sv-toc-open .sv-toc-backdrop {
   background: var(--sv-track-light);
 }
 
+/* ── Home (D1): lesson card is one link, small month squares, community strip ── */
+.sv-dash-lesson-link { display: block; text-decoration: none; color: inherit; }
+.sv-dash-lesson-link .sv-dash-lesson-title { margin-bottom: 10px; }
+.sv-dash-lesson-thumb { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 14px; margin-bottom: 14px; }
+.sv-dash-lesson-go { font-weight: 700; font-size: 0.9rem; color: var(--sv-orange); }
+.sv-dash-month { margin-top: 18px; }
+.sv-dash-month-title { font-size: 0.78rem; font-weight: 700; color: var(--sv-text-muted); margin-bottom: 8px; }
+.sv-dash-month-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+.sv-dash-sq { width: 14px; height: 14px; border-radius: 3px; background: var(--sv-track-light); display: inline-block; }
+.sv-dash-sq-done { background: var(--sv-orange-light); }
+.sv-dash-sq-today { background: #ffffff; border: 2px solid var(--sv-orange); box-sizing: border-box; }
+.sv-dash-community { margin-top: 22px; }
+.sv-dash-community-title { font-size: 0.95rem; font-weight: 800; color: var(--sv-text-main); margin-bottom: 6px; }
+
 /* ── Phrase bank + mazwi button (lesson page, built from mazwi.app/lessons.json) ── */
 .sv-phrasebank {
   background: #ffffff;

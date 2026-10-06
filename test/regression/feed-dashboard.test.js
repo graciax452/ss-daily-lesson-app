@@ -22,7 +22,7 @@ describe('Feed page dashboard banner (mounts into the real portal shell, not a s
     expect(feedBox.firstElementChild.id).toBe('sv-feed-dashboard');
   });
 
-  it('hides but does not remove the native welcome box / post composer / post list (Home is dashboard-only)', async () => {
+  it('hides only the native welcome box; the post composer and post list stay visible under the dashboard', async () => {
     const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
     mountUI();
     await waitForMicrotasks();
@@ -36,10 +36,10 @@ describe('Feed page dashboard banner (mounts into the real portal shell, not a s
     expect(composer).not.toBeNull();
     expect(postList).not.toBeNull();
 
-    // ...just hidden, since Home shouldn't show feed content at all.
+    // ...the welcome box is hidden, the community feed itself is shown below our dashboard.
     expect(welcomeBox.style.display).toBe('none');
-    expect(composer.style.display).toBe('none');
-    expect(postList.closest('.fcom_feed_style_timeline').style.display).toBe('none');
+    expect(composer.style.display).not.toBe('none');
+    expect(postList.closest('.fcom_feed_style_timeline').style.display).not.toBe('none');
   });
 
   it('keeps native content hidden across repeated mountUI() calls, even if something reappears in the DOM', async () => {
@@ -100,17 +100,14 @@ describe('Feed page dashboard banner (mounts into the real portal shell, not a s
     expect(statValues).toEqual(['0', '0']);
   });
 
-  it('renders a full month calendar grid', async () => {
+  it('brand-new learners get no month squares (nothing to show yet)', async () => {
     const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
     mountUI();
     await waitForMicrotasks();
 
     const banner = document.getElementById('sv-feed-dashboard');
-    const cells = banner.querySelectorAll('.sv-dash-cal-cell:not(.sv-dash-cal-empty)');
-    const now = new Date();
-    const realDaysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    expect(cells.length).toBe(realDaysInMonth);
-    expect(banner.querySelectorAll('.sv-dash-cal-weekday').length).toBe(7);
+    expect(banner.querySelector('.sv-dash-month')).toBeNull();
+    expect(banner.querySelector('.sv-dash-cal')).toBeNull();
   });
 
   it('is idempotent: repeated mountUI() calls (as scheduleMountUI triggers on feed mutations) do not duplicate the banner', async () => {

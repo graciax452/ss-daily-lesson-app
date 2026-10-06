@@ -182,12 +182,29 @@ describe('Home: current lesson from FluentCommunity', () => {
     mountUI();
     await settle();
     const banner = document.getElementById('sv-feed-dashboard');
-    expect(banner.textContent).toContain('Continue learning');
+    expect(banner.textContent).toContain("Today's lesson");
     expect(banner.textContent).toContain('Day 2');
-    expect(banner.querySelector('.sv-dash-lesson-btn').getAttribute('href'))
+    // the whole card is the link — no separate button
+    expect(banner.querySelector('a.sv-dash-lesson-card').getAttribute('href'))
       .toBe('https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-2');
     const stats = Array.from(document.querySelectorAll('.sv-dash-stat-value')).map((el) => el.textContent);
     expect(stats[0]).toBe('1'); // lesson 11 only — onboarding (10) is excluded
+  });
+
+  it('once a learner has a completion, shows one small square per day of the month (no big calendar)', async () => {
+    mockCourse({ completed: ['11'] });
+    const { mountUI } = loadApp({
+      fixture: 'feed-page',
+      bodyAttrs: { 'data-route': 'all_feeds' },
+      supabaseOverrides: { selectResult: { data: [{ lesson_id: '11', completed_at: new Date().toISOString() }], error: null } },
+    });
+    mountUI();
+    await settle();
+    const banner = document.getElementById('sv-feed-dashboard');
+    const now = new Date();
+    const daysInMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
+    expect(banner.querySelectorAll('.sv-dash-sq').length).toBe(daysInMonth);
+    expect(banner.querySelector('.sv-dash-cal')).toBeNull();
   });
 
   it('shows a start card instead when the member is not enrolled', async () => {
@@ -197,7 +214,7 @@ describe('Home: current lesson from FluentCommunity', () => {
     await settle();
     const banner = document.getElementById('sv-feed-dashboard');
     expect(banner.textContent).toContain('Start the course');
-    expect(banner.textContent).not.toContain('Continue learning');
+    expect(banner.textContent).not.toContain("Today's lesson");
   });
 
   it('shows "all caught up" once every lesson is completed', async () => {
@@ -234,5 +251,26 @@ describe('Home: latest missions', () => {
     const boxes = document.querySelectorAll('#sv-latest-missions');
     expect(boxes.length).toBe(1);
     expect(boxes[0].nextElementSibling.classList.contains('widget_recent_activities')).toBe(true);
+  });
+});
+
+describe('Home: lesson card thumbnail (D1)', () => {
+  it("shows the lesson's YouTube thumbnail when mazwi's lessons.json has a video id, and none when it doesn't", async () => {
+    mockCourse({ completed: ['10', '11'] });
+    const { mountUI, _setLessonsManifest } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    _setLessonsManifest([{ zuva: 2, title: 'Day 2', fc_url: 'https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-2', video: 'wNPpqto7CYc' }]);
+    mountUI();
+    await settle();
+    const img = document.querySelector('#sv-feed-dashboard .sv-dash-lesson-thumb');
+    expect(img.getAttribute('src')).toBe('https://i.ytimg.com/vi/wNPpqto7CYc/hqdefault.jpg');
+  });
+
+  it('shows no thumbnail without a video id (and rejects a malformed one)', async () => {
+    mockCourse({ completed: ['10', '11'] });
+    const { mountUI, _setLessonsManifest } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    _setLessonsManifest([{ zuva: 2, title: 'Day 2', fc_url: 'https://speakshona.com/shonaverse/course/shona-lessons/lessons/day-2', video: '"><script>' }]);
+    mountUI();
+    await settle();
+    expect(document.querySelector('#sv-feed-dashboard .sv-dash-lesson-thumb')).toBeNull();
   });
 });

@@ -1328,15 +1328,11 @@
 
     let banner = document.getElementById('sv-feed-dashboard');
 
-    // Home is dashboard-only, not a hybrid feed+dashboard view - hide every
-    // native sibling (welcome banner, post composer, post list) every time
-    // this runs, not just once, so it stays hidden even if Vue reactively
-    // adds a new post or re-shows something later. Hidden via display:none,
-    // never removed, so Vue can still safely manage/re-render these elements
-    // without our interference - same pattern already proven safe for the
-    // lesson page's native comments area in mountLessonUI().
+    // Our dashboard sits first; the community feed (post composer + posts) shows below it.
+    // Only the native welcome box is hidden - every time this runs, so it stays hidden if Vue
+    // re-shows it. Hidden via display:none, never removed, so Vue can keep managing it.
     Array.from(feedBox.children).forEach((child) => {
-      if (child !== banner) child.style.display = 'none';
+      if (child !== banner && child.classList.contains('fcom_welcome_box')) child.style.display = 'none';
     });
 
     if (banner) return; // content already rendered this session
@@ -1352,10 +1348,11 @@
     banner.innerHTML = '<div style="text-align:center; padding:20px 0; color:var(--sv-text-muted);">Loading your progress...</div>';
 
     const uid = await ensureAuth();
-    const [course, , completionsRes] = await Promise.all([
+    const [course, , completionsRes, missionsRes] = await Promise.all([
       getCourse(),
       loadLessonsManifest(),
       supabase.from('lesson_completions').select('lesson_id, completed_at').eq('user_id', uid),
+      supabase.from('lesson_missions').select('*').order('created_at', { ascending: false }).limit(3),
     ]);
     const { data: completions, error } = completionsRes;
 
@@ -1408,12 +1405,17 @@
         </div>
       `;
     } else if (currentLesson) {
+      // The lesson's YouTube thumbnail (video id comes from mazwi's lessons.json), when we have one
+      const entry = findLessonEntry(_lessonsManifest || [], { href: currentLesson.url, title: currentLesson.title });
+      const videoId = entry && /^[A-Za-z0-9_-]{11}$/.test(entry.video || '') ? entry.video : '';
+      const thumb = videoId ? `<img class="sv-dash-lesson-thumb" src="https://i.ytimg.com/vi/${videoId}/hqdefault.jpg" alt="" loading="lazy">` : '';
       lessonCard = `
-        <div class="sv-dash-lesson-card">
-          <div class="sv-dash-lesson-eyebrow">Continue learning${escHtml(zuvaLabel(currentLesson))}</div>
+        <a class="sv-dash-lesson-card sv-dash-lesson-link" href="${safeUrl(currentLesson.url)}">
+          ${thumb}
+          <div class="sv-dash-lesson-eyebrow">${completedCount > 0 ? "Today's lesson" : 'Your first lesson'}${escHtml(zuvaLabel(currentLesson))}</div>
           <div class="sv-dash-lesson-title">${escHtml(currentLesson.title)}</div>
-          <a class="sv-dash-lesson-btn" href="${safeUrl(currentLesson.url)}">Start lesson</a>
-        </div>
+          <span class="sv-dash-lesson-go">Start lesson →</span>
+        </a>
       `;
     } else {
       lessonCard = `
@@ -1429,26 +1431,25 @@
     const dayLetters = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     const monthMap = getMonthCompletionMap(completedDates);
 
-    const calendarCellsHtml = monthMap.days.map((d) => {
-      if (!d) return '<div class="sv-dash-cal-cell sv-dash-cal-empty"></div>';
-      const stateClass = d.done ? 'sv-dash-cal-done' : (d.isToday ? 'sv-dash-cal-today' : '');
-      return `<div class="sv-dash-cal-cell ${stateClass}">${d.day}</div>`;
-    }).join('');
+    // Small GitHub-style squares for the month (the lesson-complete modal already shows the week).
+    // Brand-new learners have nothing to show yet, so they get none.
+    const monthHtml = completedDates.length === 0 ? '' : `
+      <div class="sv-dash-month" aria-label="${monthNames[monthMap.month]} ${monthMap.year}">
+        <div class="sv-dash-month-title">${monthNames[monthMap.month]}</div>
+        <div class="sv-dash-month-grid">
+          ${monthMap.days.filter(Boolean).map((d) => `<span class="sv-dash-sq${d.done ? ' sv-dash-sq-done' : (d.isToday ? ' sv-dash-sq-today' : '')}" title="${d.day}"></span>`).join('')}
+        </div>
+      </div>`;
 
-    const calendarHtml = `
-      <div class="sv-dash-cal">
-        <div class="sv-dash-cal-title">${monthNames[monthMap.month]} ${monthMap.year}</div>
-        <div class="sv-dash-cal-grid">
-          ${dayLetters.map((l) => `<div class="sv-dash-cal-weekday">${l}</div>`).join('')}
-          ${calendarCellsHtml}
-        </div>
-        <div class="sv-dash-cal-legend">
-          <span><span class="sv-dash-cal-dot sv-dash-cal-dot-done"></span>Done</span>
-          <span><span class="sv-dash-cal-dot sv-dash-cal-dot-today"></span>Today</span>
-          <span><span class="sv-dash-cal-dot sv-dash-cal-dot-upcoming"></span>Upcoming</span>
-        </div>
-      </div>
-    `;
+    // A few of the latest missions, so Home feels alive (and brand-new learners see others posting).
+    const lessonsById = {};
+    (course ? course.lessons : []).forEach((l) => { lessonsById[l.id] = l; });
+    const missions = missionsRes && !missionsRes.error ? (missionsRes.data || []) : [];
+    const communityHtml = missions.length ? `
+      <div class="sv-dash-community">
+        <div class="sv-dash-community-title">From the community</div>
+        <div class="sv-lm-list">${renderLatestMissionsHtml(missions, lessonsById)}</div>
+      </div>` : '';
 
     banner.innerHTML = `
       <div class="sv-dash-stats">
@@ -1463,7 +1464,8 @@
         <a class="sv-dash-curriculum-btn" href="${FEED_DASHBOARD_COURSE_URL}" aria-label="View curriculum">${svIconMap}</a>
       </div>
       ${lessonCard}
-      ${calendarHtml}
+      ${monthHtml}
+      ${communityHtml}
     `;
   }
 
