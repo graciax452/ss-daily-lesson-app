@@ -68,12 +68,15 @@ describe('Daily Lessons sales page', () => {
     expect(a.getAttribute('href')).toContain('/pinda');
   });
 
-  it('free first: a signed-out visitor sees "Start lesson 1 free" (a free account) above the plans, not a paywall', () => {
+  it('free first: a signed-out visitor sees a quiet start button (a free account) and the plans tucked behind "Membership plans", with no lesson count in the copy', () => {
     mount();
     const free = document.querySelector('#sv-plans .sv-free .sv-free-btn');
     expect(free.getAttribute('href')).toContain('/pinda');
     expect(document.getElementById('sv-plans').firstElementChild.className).toBe('sv-free');
-    expect(document.querySelector('#sv-plans .sv-plans-title').textContent).toBe('Want every lesson?');
+    expect(document.querySelector('#sv-plans .sv-plans-more').hidden).toBe(true);
+    document.querySelector('#sv-plans .sv-plans-toggle').click();
+    expect(document.querySelector('#sv-plans .sv-plans-more').hidden).toBe(false);
+    expect(document.getElementById('sv-plans').textContent).not.toMatch(/d+ lessons/);
   });
 
   it('is idempotent and puts the plans back on top if Vue re-rendered the lock screen', () => {

@@ -1406,18 +1406,21 @@
       box.id = 'sv-plans';
       box.setAttribute('data-period', 'year');
       const freeStart = safeUrl(loginHref)
-        ? '<div class="sv-free"><div class="sv-free-title">Start free</div>'
-          + '<div class="sv-free-sub">The first ' + FREE_LESSONS + ' lessons are free. Make a free account and begin today. No card needed.</div>'
-          + '<a class="sv-free-btn" href="' + safeUrl(loginHref) + '">Start lesson 1 free</a></div>'
+        ? '<div class="sv-free"><div class="sv-free-title">Start learning Shona</div>'
+          + '<div class="sv-free-sub">Make a free account and begin with your first lesson.</div>'
+          + '<a class="sv-free-btn" href="' + safeUrl(loginHref) + '">Start your first lesson</a></div>'
+          + '<button type="button" class="sv-plans-toggle" aria-expanded="false">Membership plans</button>'
         : '';
       box.innerHTML = freeStart
-        + '<div class="sv-plans-head"><div class="sv-plans-title">' + (freeStart ? 'Want every lesson?' : 'Join Daily Lessons') + '</div>'
-        + '<div class="sv-plans-sub">' + (freeStart ? 'Join Daily Lessons to keep going after the free ones.' : 'A short Shona lesson every day. Pick a plan.') + '</div></div>'
+        + '<div class="sv-plans-more"' + (freeStart ? ' hidden' : '') + '>'
+        + '<div class="sv-plans-head"><div class="sv-plans-title">Join Daily Lessons</div>'
+        + '<div class="sv-plans-sub">A short Shona lesson every day. Pick a plan.</div></div>'
         + '<div class="sv-plans-bill">Choose how you pay</div>'
         + '<div class="sv-plans-switch" role="group" aria-label="Billing period">'
         + '<button type="button" data-period="month">Monthly</button>'
         + '<button type="button" data-period="year">Yearly' + (save > 0 ? ' <span class="sv-plans-save">Save ' + save + '%</span>' : '') + '</button></div>'
         + '<div class="sv-plans-grid"></div>'
+        + '</div>'
         + (safeUrl(loginHref) ? '<div class="sv-plans-login">Already have an account? <a href="' + safeUrl(loginHref) + '">Log in</a></div>' : '');
       const setPeriod = (period) => {
         box.setAttribute('data-period', period);
@@ -1429,6 +1432,13 @@
         });
       };
       box.addEventListener('click', (e) => {
+        const t = e.target.closest && e.target.closest('.sv-plans-toggle');
+        if (t) {
+          const more = box.querySelector('.sv-plans-more');
+          more.hidden = !more.hidden;
+          t.setAttribute('aria-expanded', more.hidden ? 'false' : 'true');
+          return;
+        }
         const b = e.target.closest && e.target.closest('.sv-plans-switch button');
         if (b) setPeriod(b.getAttribute('data-period'));
       });
@@ -1702,9 +1712,8 @@
 
   const COURSE_SLUG = 'shona-lessons';
 
-  // Free first: people get into the first lessons with a free account and only meet the paywall
-  // at the first lesson they have not been given. Keep FREE_LESSONS in step with mazwi's FREE_LESSONS.
-  const FREE_LESSONS = 3;
+  // Free first: people get into the lessons with a free account and only meet the paywall
+  // at the first lesson they have not been given. No lesson count is ever printed in the copy.
   const SIGNUP_URL = 'https://speakshona.com/pinda';
   const isSignedOutPage = () => !!document.querySelector('.fcom_login_btn');
 
@@ -1926,10 +1935,10 @@
       const startUrl = SIGNUP_URL + '?redirect_to=' + encodeURIComponent(first ? first.url : FEED_DASHBOARD_COURSE_URL);
       lessonCard = `
         <div class="sv-dash-lesson-card">
-          <div class="sv-dash-lesson-eyebrow">Free to start</div>
-          <div class="sv-dash-lesson-title">Your first ${FREE_LESSONS} lessons are free</div>
-          <p class="sv-dash-lesson-sub">Make a free account and start Zuva 1 today. No card needed.</p>
-          <a class="sv-dash-lesson-btn" href="${safeUrl(startUrl)}">Start lesson 1 free</a>
+          <div class="sv-dash-lesson-eyebrow">Start here</div>
+          <div class="sv-dash-lesson-title">Daily Shona Lessons</div>
+          <p class="sv-dash-lesson-sub">Ten minutes a day. Make a free account to begin.</p>
+          <a class="sv-dash-lesson-btn" href="${safeUrl(startUrl)}">Start your first lesson</a>
         </div>
       `;
     } else if (course && !course.isEnrolled) {

@@ -799,3 +799,5 @@ body.sv-toc-open .sv-toc-backdrop {
 .sv-free-title { font-size: 1.7rem; font-weight: 800; color: var(--sv-text-main); }
 .sv-free-sub { color: var(--sv-text-muted); margin: 6px 0 16px; }
 .sv-free-btn { display: inline-block; padding: 14px 32px; border-radius: 999px; background: var(--sv-orange); color: #ffffff; font-weight: 800; font-size: 1.05rem; text-decoration: none; }
+.sv-plans-toggle { display: block; margin: 0 auto 8px; border: 0; background: transparent; font-family: inherit; font-size: 0.9rem; color: var(--sv-text-muted); text-decoration: underline; cursor: pointer; }
+.sv-plans-more[hidden] { display: none; }
