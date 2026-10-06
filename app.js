@@ -987,6 +987,8 @@
     return String((a && a.portal_url) || 'https://speakshona.com/shonaverse').replace(/\/+$/, '');
   }
 
+  const LIVE_BUY_URL = 'https://speakshona.com/item/daily-lessons-zuva-nezuva/'; // product page: pick Daily Lessons + Live
+
   const SIDE_ICON_HOME = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"></path><path d="M5.5 10v9.5h13V10"></path></svg>';
   const SIDE_ICON_COMMUNITY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"></path></svg>';
 
@@ -1061,6 +1063,21 @@
       const footer = document.querySelector('.fcom_side_footer');
       if (footer) footer.insertBefore(links, footer.firstChild); else wrap.appendChild(links);
     }
+
+    // The Live Classes space is secret: people without the Live tag never see it, so offer it to them
+    links = document.getElementById('sv-side-links');
+    let buy = document.getElementById('sv-side-live-buy');
+    if (!liveA && links && !buy) {
+      buy = document.createElement('a');
+      buy.id = 'sv-side-live-buy';
+      buy.href = LIVE_BUY_URL;
+      buy.target = '_blank';
+      buy.rel = 'noopener noreferrer';
+      buy.textContent = 'Get live classes';
+      links.appendChild(buy);
+    } else if (liveA && buy) {
+      buy.remove();
+    }
   }
 
   // ── Live Classes page: two class cards (kids / adults) with a countdown that turns into a Join
@@ -1072,8 +1089,8 @@
   const LIVE_TZ_KEY = 'sv_live_tz';
   const LIVE_FALLBACK_TZ = 'America/Vancouver';
   const LIVE_CLASSES_DEFAULT = [
-    { id: 'kids', title: 'Kids class', blurb: 'Ages 7+', dow: 5, start: '11:45', end: '12:30', tz: 'America/Vancouver', first: '2026-10-09', meet_url: '', recordings_url: '' },
-    { id: 'adults', title: 'Adults class', blurb: 'Every level welcome', dow: 5, start: '12:45', end: '13:30', tz: 'America/Vancouver', first: '2026-10-09', meet_url: '', recordings_url: '' },
+    { id: 'kids', icon: '🌈', title: 'Kids class', blurb: 'Ages 7+', dow: 5, start: '11:45', end: '12:30', tz: 'America/Vancouver', first: '2026-10-09', meet_url: '', recordings_url: '' },
+    { id: 'adults', icon: '🌍', title: 'Adults class', blurb: 'Every level welcome', dow: 5, start: '12:45', end: '13:30', tz: 'America/Vancouver', first: '2026-10-09', meet_url: '', recordings_url: '' },
   ];
   const LIVE_ZONES = [
     ['America/Vancouver', 'Pacific — Vancouver, Los Angeles'],
@@ -1173,7 +1190,8 @@
     } else {
       action = '<span class="sv-live-btn sv-live-btn-off">Starts in ' + formatCountdown(s.start - now) + '</span>';
     }
-    return '<div class="sv-live-card" data-class="' + escHtml(cls.id) + '">'
+    return '<div class="sv-live-card sv-live-card-' + escHtml(cls.id) + '" data-class="' + escHtml(cls.id) + '">'
+      + '<div class="sv-live-icon" aria-hidden="true">' + (cls.icon || '') + '</div>'
       + '<div class="sv-live-title">' + escHtml(cls.title) + '</div>'
       + (s ? '<div class="sv-live-when">' + escHtml(liveLocalLabel(s, zone || liveZone())) + '</div>' : '')
       + (cls.blurb ? '<div class="sv-live-blurb">' + escHtml(cls.blurb) + '</div>' : '')
@@ -1207,7 +1225,14 @@
     const rows = page._rows || LIVE_CLASSES_DEFAULT;
     const now = Date.now();
     const zone = liveZone();
-    body.innerHTML = '<div class="sv-live-grid">' + rows.map((r) => renderLiveCard(r, now, zone)).join('') + '</div>' + renderLiveRecordings(rows);
+    body.innerHTML = '<div class="sv-live-intro"><div class="sv-live-intro-title">Live with Tsitsi, every Friday</div>'
+      + '<div class="sv-live-blurb">Speak, listen and practise Shona together. Pick your class below.</div></div>'
+      + '<div class="sv-live-grid">' + rows.map((r) => renderLiveCard(r, now, zone)).join('') + '</div>'
+      + '<div class="sv-live-tips"><div class="sv-live-tips-title">Before you join</div><ul>'
+      + '<li>The Join button opens 10 minutes before the class</li>'
+      + '<li>It opens in Google Meet — use headphones if you can</li>'
+      + '<li>Keep a notebook handy to write new words</li></ul></div>'
+      + renderLiveRecordings(rows);
   }
 
   async function loadLiveClasses(page) {

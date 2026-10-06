@@ -156,6 +156,17 @@ describe('Live Classes space page', () => {
     expect(page.nextElementSibling).toBe(body);
   });
 
+  it('has a welcome line, an icon on each class card and a "before you join" strip', async () => {
+    visit('/shonaverse/space/liveclass/home');
+    const { mountUI } = loadApp({ fixture: 'space-page', bodyAttrs: { 'data-route': 'space_feeds' } });
+    mountUI();
+    await settle();
+    const page = document.getElementById('sv-live');
+    expect(page.querySelector('.sv-live-intro')).not.toBeNull();
+    expect(page.querySelectorAll('.sv-live-icon').length).toBe(2);
+    expect(page.querySelector('.sv-live-tips').textContent).toContain('Before you join');
+  });
+
   it('uses the Meet and recordings links from the live_classes table, merged onto the schedule', async () => {
     visit('/shonaverse/space/liveclass/home');
     const { mountUI } = loadApp({

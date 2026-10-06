@@ -70,6 +70,23 @@ describe('Left sidebar', () => {
     expect(labels().slice(0, 2)).toEqual(['Home', 'Community']);
   });
 
+  it('offers "Get live classes" to people who do not have Live (the secret space is missing from their sidebar), and not to those who do', () => {
+    // without Live: no Live Classes item
+    let app = loadApp({ fixture: 'sidebar', bodyAttrs: { 'data-route': 'all_feeds' } });
+    document.querySelector('a.fcom_space_liveclass').closest('li').remove();
+    app.mountUI();
+    const buy = document.getElementById('sv-side-live-buy');
+    expect(buy).not.toBeNull();
+    expect(buy.getAttribute('href')).toBe('https://speakshona.com/item/daily-lessons-zuva-nezuva/');
+    expect(buy.parentElement.id).toBe('sv-side-links');
+    app.mountUI();
+    expect(document.querySelectorAll('#sv-side-live-buy').length).toBe(1);
+    // with Live: no buy button
+    app = loadApp({ fixture: 'sidebar', bodyAttrs: { 'data-route': 'all_feeds' } });
+    app.mountUI();
+    expect(document.getElementById('sv-side-live-buy')).toBeNull();
+  });
+
   it('does nothing on pages without the sidebar', () => {
     const { mountUI } = loadApp({ bodyAttrs: { 'data-route': 'all_feeds' } });
     expect(() => mountUI()).not.toThrow();

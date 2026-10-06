@@ -451,7 +451,8 @@ body.sv-toc-open .sv-toc-backdrop {
 #fcom_sidebar_wrap .fcom_group_title { display: none !important; }
 .sv-side-hidden { display: none !important; }
 #fcom_sidebar_wrap .fcom_communities_menu + .fcom_communities_menu { margin-top: 10px; }
-#sv-side-links { display: flex; gap: 10px; padding: 10px 16px; }
+#sv-side-links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 16px; }
+#sv-side-live-buy { width: auto !important; height: 34px; padding: 0 14px; border-radius: 999px !important; background: var(--sv-orange) !important; color: #ffffff !important; font-weight: 700; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; }
 #sv-side-links a { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--sv-cream); }
 #sv-side-links img { width: 20px; height: 20px; object-fit: contain; }
 
@@ -471,6 +472,15 @@ body.sv-toc-open .sv-toc-backdrop {
 .sv-live-rec-btns { display: flex; flex-wrap: wrap; gap: 10px; }
 .sv-live-rec-btn { padding: 10px 16px; border-radius: 12px; font-weight: 700; text-decoration: none; border: 1.5px solid var(--sv-orange); color: var(--sv-orange); background: #ffffff; }
 .sv-live-rec-btn.sv-live-btn-off { border-color: transparent; }
+.sv-live-intro { text-align: center; margin-bottom: 18px; }
+.sv-live-intro-title { font-size: 1.35rem; font-weight: 800; color: var(--sv-text-main); }
+.sv-live-card { position: relative; overflow: hidden; }
+.sv-live-card::before { content: ''; position: absolute; left: 0; top: 0; right: 0; height: 6px; background: var(--sv-orange-light); }
+.sv-live-card-adults::before { background: var(--sv-brand-green, #2d8a57); }
+.sv-live-icon { font-size: 1.8rem; line-height: 1; margin-bottom: 4px; }
+.sv-live-tips { margin-top: 16px; background: var(--sv-cream); border-radius: 16px; padding: 14px 20px; }
+.sv-live-tips-title { font-weight: 800; font-size: 0.95rem; color: var(--sv-text-main); margin-bottom: 4px; }
+.sv-live-tips ul { margin: 0; padding-left: 18px; color: var(--sv-text-muted); font-size: 0.9rem; }
 .sv-live-tz { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; color: var(--sv-text-muted); font-size: 0.9rem; }
 .sv-live-tz select { padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--sv-border); background: #ffffff; color: var(--sv-text-main); font-family: inherit; font-size: 0.9rem; max-width: 70vw; }
 
