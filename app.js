@@ -930,7 +930,52 @@
       mountLessonUI();
     } else if (route === 'all_feeds') {
       mountFeedDashboard();
+    } else if (route === 'space_feeds') {
+      mountSpaceTabs();
     }
+  }
+
+  // The community spaces as one row of tabs, so the sidebar only needs a single "Community" link.
+  // Edit this list to add, remove or reorder tabs (slug = the /space/<slug>/ part of the address;
+  // a tab with a path instead goes to that portal page — "Feed" is the all-community feed, which
+  // lives on Home, under the dashboard).
+  const SPACE_TABS = [
+    { label: 'Feed', path: '/feed' },
+    { slug: 'general', label: 'Lounge' },
+    { slug: 'say-hello', label: 'Ndeipi! Intros' },
+    { slug: 'rules', label: 'Rules' },
+  ];
+
+  function getSpaceSlug() {
+    const m = /\/space\/([^/?#]+)/.exec(window.location.pathname || '');
+    return m ? m[1] : '';
+  }
+
+  // Inserts the tab row between a space's title bar and its posts. Idempotent: re-running it
+  // (the MutationObserver does, often) leaves an up-to-date bar alone, and puts it back if Vue
+  // re-rendered the page around it.
+  function mountSpaceTabs() {
+    const slug = getSpaceSlug();
+    if (!slug || !SPACE_TABS.some((t) => t.slug === slug)) return;
+    const layout = document.querySelector('.fhr_content_layout');
+    const body = layout && layout.querySelector('.fhr_content_layout_body');
+    if (!layout || !body) return;
+
+    let bar = document.getElementById('sv-space-tabs');
+    if (!bar) {
+      bar = document.createElement('nav');
+      bar.id = 'sv-space-tabs';
+      bar.setAttribute('aria-label', 'Community spaces');
+    }
+    if (bar.getAttribute('data-slug') !== slug) {
+      const a = window.fluentComAdmin;
+      const portal = String((a && a.portal_url) || 'https://speakshona.com/shonaverse').replace(/\/+$/, '');
+      bar.setAttribute('data-slug', slug);
+      bar.innerHTML = SPACE_TABS.map((t) =>
+        `<a class="sv-space-tab${t.slug === slug ? ' sv-space-tab-active' : ''}" href="${safeUrl(portal + (t.path || '/space/' + t.slug + '/home'))}"${t.slug === slug ? ' aria-current="page"' : ''}>${escHtml(t.label)}</a>`
+      ).join('');
+    }
+    if (bar.nextElementSibling !== body || bar.parentNode !== layout) layout.insertBefore(bar, body);
   }
 
   function mountLessonUI() {
@@ -1503,6 +1548,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();
