@@ -217,6 +217,15 @@ describe('Home: current lesson from FluentCommunity', () => {
     expect(banner.textContent).not.toContain("Today's lesson");
   });
 
+  it('regression: the Start the course button opens the /lessons page (the bare course address is blank for signed-out visitors)', async () => {
+    mockCourse({ enrolled: false });
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    mountUI();
+    await settle();
+    const btn = Array.from(document.querySelectorAll('#sv-feed-dashboard a')).find((a) => a.textContent.trim() === 'Start the course');
+    expect(btn.getAttribute('href')).toMatch(/\/course\/shona-lessons\/lessons$/);
+  });
+
   it('shows "all caught up" once every lesson is completed', async () => {
     mockCourse({ completed: ['10', '11', '12'] });
     const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });

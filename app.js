@@ -1901,7 +1901,8 @@
     const completedCount = getTotalCompletedCount(countedIds);
     const openLessons = courseLessons.filter((l) => isLessonPublished(l, _lessonsManifest));
     const currentLesson = getCurrentLesson(openLessons, completedIds);
-    const courseUrl = course ? course.url : FEED_DASHBOARD_COURSE_URL;
+    // always the /lessons page: the bare course address renders blank for visitors who are signed out
+    const courseUrl = FEED_DASHBOARD_COURSE_URL;
     const svIconCheck = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
     const svIconFlame = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2c1 3-3 4-3 8a3 3 0 0 0 6 0c1 1 2 2.5 2 4.5A5.5 5.5 0 0 1 6 14c0-5 4-6 6-12z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg>`;
     const svIconMap = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 3 3 5v16l6-2 6 2 6-2V3l-6 2-6-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path><path d="M9 3v16M15 5v16" stroke="currentColor" stroke-width="1.8"></path></svg>`;
