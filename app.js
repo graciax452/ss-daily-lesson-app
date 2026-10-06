@@ -1013,7 +1013,7 @@
 
   // Courses that only the people enrolled in them (and admins) should see in the sidebar — the camp and
   // cohort replays hold other families' recordings. Add a slug (the /course/<slug>/ part) to hide more.
-  const ENROLLED_ONLY_COURSES = ['replays'];
+  const ENROLLED_ONLY_NAME = /^replays/i; // every course whose name starts with "Replays"
   const _enrolledState = {};   // slug -> true | false once known
   const _enrolledAsked = {};   // slug -> true once the check has started
 
@@ -1058,10 +1058,12 @@
     }
 
     // enrolled-only courses (camp / cohort replays): hidden until we know this person is enrolled
-    ENROLLED_ONLY_COURSES.forEach((slug) => {
-      const a = wrap.querySelector('a.fcom_space_' + slug);
-      const li = a && a.closest('li');
-      if (!li) return;
+    wrap.querySelectorAll('a[href*="/course/"]').forEach((a) => {
+      const name = a.getAttribute('data-fcom-hint') || (a.textContent || '').trim();
+      const m = /\/course\/([^/?#]+)/.exec(a.getAttribute('href') || '');
+      const li = a.closest('li');
+      if (!li || !m || !ENROLLED_ONLY_NAME.test(name)) return;
+      const slug = m[1];
       const show = _enrolledState[slug] === true || getUserInfo().isAdmin;
       li.classList.toggle('sv-side-hidden', !show);
       if (!show && !_enrolledAsked[slug]) {
@@ -1361,7 +1363,7 @@
     const pick = (live, yearly) => plans.find((p) => p.live === live && p.yearly === yearly) || null;
     return [
       { id: 'base', name: 'Daily Lessons', cta: 'Join Daily Lessons', bullets: PLAN_BULLETS_BASE, month: pick(false, false), year: pick(false, true) },
-      { id: 'live', name: 'Daily Lessons + Live', cta: 'Join with Live', bullets: PLAN_BULLETS_LIVE, month: pick(true, false), year: pick(true, true) },
+      { id: 'live', name: 'Daily Lessons + Live', cta: 'Join Daily Lessons + Live', bullets: PLAN_BULLETS_LIVE, month: pick(true, false), year: pick(true, true) },
     ].filter((g) => g.month || g.year);
   }
 
@@ -1405,6 +1407,7 @@
       box.setAttribute('data-period', 'year');
       box.innerHTML = '<div class="sv-plans-head"><div class="sv-plans-title">Join Daily Lessons</div>'
         + '<div class="sv-plans-sub">A short Shona lesson every day. Pick a plan.</div></div>'
+        + '<div class="sv-plans-bill">Choose how you pay</div>'
         + '<div class="sv-plans-switch" role="group" aria-label="Billing period">'
         + '<button type="button" data-period="month">Monthly</button>'
         + '<button type="button" data-period="year">Yearly' + (save > 0 ? ' <span class="sv-plans-save">Save ' + save + '%</span>' : '') + '</button></div>'
@@ -2014,6 +2017,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_COURSES, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_NAME, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();

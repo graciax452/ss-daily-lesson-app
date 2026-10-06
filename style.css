@@ -488,10 +488,12 @@ body.sv-toc-open .sv-toc-backdrop {
 #sv-plans { max-width: 760px; margin: 28px auto; padding: 0 16px; text-align: center; }
 .sv-plans-title { font-size: 1.7rem; font-weight: 800; color: var(--sv-text-main); }
 .sv-plans-sub { color: var(--sv-text-muted); margin-top: 4px; }
-.sv-plans-switch { display: inline-flex; margin: 20px 0 18px; padding: 4px; border-radius: 999px; background: var(--sv-cream); }
-.sv-plans-switch button { border: 0; background: transparent; padding: 9px 20px; border-radius: 999px; font-family: inherit; font-weight: 700; font-size: 0.95rem; color: var(--sv-text-muted); cursor: pointer; }
-.sv-plans-switch button.sv-plans-on { background: #ffffff; color: var(--sv-text-main); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); }
-.sv-plans-save { margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: var(--sv-orange); color: #ffffff; font-size: 0.72rem; }
+.sv-plans-bill { margin-top: 20px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--sv-text-muted); }
+.sv-plans-switch { display: inline-flex; margin: 8px 0 20px; padding: 5px; border-radius: 999px; background: #ffffff; border: 2px solid var(--sv-orange); }
+.sv-plans-switch button { border: 0; background: transparent; padding: 11px 26px; border-radius: 999px; font-family: inherit; font-weight: 800; font-size: 1rem; color: var(--sv-text-muted); cursor: pointer; }
+.sv-plans-switch button.sv-plans-on { background: var(--sv-orange); color: #ffffff; }
+.sv-plans-save { margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: #ffffff; color: var(--sv-orange); font-size: 0.72rem; }
+.sv-plans-switch button:not(.sv-plans-on) .sv-plans-save { background: var(--sv-orange); color: #ffffff; }
 .sv-plans-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; text-align: left; }
 @media (max-width: 640px) { .sv-plans-grid { grid-template-columns: 1fr; } }
 .sv-plan { background: #ffffff; border: 1.5px solid var(--sv-border); border-radius: 20px; padding: 24px; display: flex; flex-direction: column; }

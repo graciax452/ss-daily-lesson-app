@@ -101,6 +101,27 @@ describe('Left sidebar', () => {
     delete globalThis.fetch; delete window.fluentComAdmin;
   });
 
+  it('hides every course called "Replays ..." (camps, cohorts) unless enrolled in that very course', async () => {
+    window.fluentComAdmin = { rest: { url: 'https://speakshona.com/wp-json/fluent-community/v2' } };
+    globalThis.fetch = async (url) => ({ ok: true, json: async () => ({ track: { isEnrolled: /replays-summer/.test(url) }, sections: [] }) });
+    const { mountUI } = loadApp({ fixture: 'sidebar', bodyAttrs: { 'data-route': 'all_feeds' } });
+    const orig = document.querySelector('a.fcom_space_replays').closest('li');
+    orig.querySelector('a').setAttribute('href', 'https://speakshona.com/shonaverse/course/replays-jumpstart/lessons');
+    orig.querySelector('a').setAttribute('data-fcom-hint', 'Replays Jumpstart Cohort');
+    const camps = orig.cloneNode(true);
+    camps.querySelector('a').setAttribute('href', 'https://speakshona.com/shonaverse/course/replays-summer/lessons');
+    camps.querySelector('a').setAttribute('data-fcom-hint', 'Replays Summer Camps');
+    orig.parentNode.appendChild(camps);
+    mountUI();
+    expect(orig.classList.contains('sv-side-hidden')).toBe(true);
+    expect(camps.classList.contains('sv-side-hidden')).toBe(true);
+    await new Promise((r) => setTimeout(r, 300));
+    mountUI();
+    expect(camps.classList.contains('sv-side-hidden')).toBe(false); // enrolled in the camps course only
+    expect(orig.classList.contains('sv-side-hidden')).toBe(true);
+    delete globalThis.fetch; delete window.fluentComAdmin;
+  });
+
   it('keeps Replays hidden when not enrolled, when the lookup fails, or when logged out', async () => {
     const { isEnrolledIn } = loadApp();
     window.fluentComAdmin = { rest: { url: 'https://x/v2' } };

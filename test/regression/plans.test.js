@@ -39,6 +39,13 @@ describe('Daily Lessons sales page', () => {
     expect(document.querySelector('#sv-plans [data-period="month"]').getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('the buttons say exactly which plan you are joining (not "with Live")', () => {
+    mount();
+    expect(card('base').querySelector('.sv-plan-btn').textContent).toBe('Join Daily Lessons');
+    expect(card('live').querySelector('.sv-plan-btn').textContent).toBe('Join Daily Lessons + Live');
+    expect(document.querySelector('#sv-plans .sv-plans-bill').textContent).toBe('Choose how you pay');
+  });
+
   it('shows the biggest saving on the Yearly switch, worked out from the prices (25% for Daily Lessons)', () => {
     mount();
     expect(document.querySelector('#sv-plans .sv-plans-save').textContent).toBe('Save 25%');
