@@ -934,6 +934,8 @@
     } else if (route === 'space_feeds') {
       mountSpaceTabs();
       mountLiveClasses();
+    } else if (route === 'view_course') {
+      mountPaywall();
     }
   }
 
@@ -1328,6 +1330,103 @@
       loadLiveClasses(page);
     } else if (page.nextElementSibling !== body) {
       layout.insertBefore(page, body);
+    }
+  }
+
+  // ── Daily Lessons sales page (the lock screen shown to visitors who do not have the course) ──
+  // FluentCommunity prints four equal plan cards. We hide them (never remove) and show two plans —
+  // Daily Lessons and Daily Lessons + Live — with a Monthly / Yearly switch, built from the real
+  // prices and checkout links in those native cards, so nothing is hard-coded here.
+  const PLAN_BULLETS_BASE = ['A short new lesson every day', 'Every lesson word in the mazwi flashcard app', 'Missions and the community'];
+  const PLAN_BULLETS_LIVE = ['Everything in Daily Lessons', 'Live classes every Friday — kids and adults', 'Recordings of every class'];
+
+  function readPaywallPlans(root) {
+    const out = [];
+    root.querySelectorAll('.fcom_paywall').forEach((card) => {
+      const titleEl = card.querySelector('.paywall_header span:last-child');
+      const title = titleEl ? titleEl.textContent : '';
+      const priceEl = card.querySelector('.paywall_body span');
+      const priceText = priceEl ? priceEl.textContent.trim() : '';
+      const subEl = card.querySelector('.paywall_body .subscription');
+      const per = subEl ? subEl.textContent.toLowerCase() : '';
+      const link = card.querySelector('.paywall_footer a');
+      const amount = parseFloat(priceText.replace(/[^0-9.]/g, ''));
+      if (!link || !isFinite(amount) || !link.getAttribute('href')) return;
+      out.push({ live: /live/i.test(title), yearly: /year|annual/i.test(per + ' ' + title), amount, priceText, href: link.getAttribute('href') });
+    });
+    return out;
+  }
+
+  function planGroups(plans) {
+    const pick = (live, yearly) => plans.find((p) => p.live === live && p.yearly === yearly) || null;
+    return [
+      { id: 'base', name: 'Daily Lessons', cta: 'Join Daily Lessons', bullets: PLAN_BULLETS_BASE, month: pick(false, false), year: pick(false, true) },
+      { id: 'live', name: 'Daily Lessons + Live', cta: 'Join with Live', bullets: PLAN_BULLETS_LIVE, month: pick(true, false), year: pick(true, true) },
+    ].filter((g) => g.month || g.year);
+  }
+
+  function planSavePct(g) {
+    return g.month && g.year ? Math.round((1 - g.year.amount / (g.month.amount * 12)) * 100) : 0;
+  }
+
+  function renderPlanCards(groups, period) {
+    return groups.map((g) => {
+      const p = period === 'year' ? (g.year || g.month) : (g.month || g.year);
+      const yearly = p === g.year;
+      const symbol = ((/^[^\d.,\s]+/.exec(p.priceText)) || [''])[0];
+      const price = p.priceText.replace(/\.00$/, '');
+      const perMonth = yearly ? '<div class="sv-plan-sub">≈ ' + escHtml(symbol + (p.amount / 12).toFixed(2)) + ' a month</div>' : '<div class="sv-plan-sub">billed monthly</div>';
+      return '<div class="sv-plan' + (g.id === 'live' ? ' sv-plan-live' : '') + '" data-plan="' + g.id + '">'
+        + '<div class="sv-plan-name">' + escHtml(g.name) + '</div>'
+        + '<div class="sv-plan-price">' + escHtml(price) + '<span> / ' + (yearly ? 'year' : 'month') + '</span></div>' + perMonth
+        + '<ul class="sv-plan-list">' + g.bullets.map((b) => '<li>' + escHtml(b) + '</li>').join('') + '</ul>'
+        + '<a class="sv-plan-btn" href="' + safeUrl(p.href) + '">' + escHtml(g.cta) + '</a></div>';
+    }).join('');
+  }
+
+  function mountPaywall() {
+    const lock = document.querySelector('.fcom_single_layout[course_slug="shona-lessons"] .space_default_lockscreen');
+    if (!lock) return;
+    const native = lock.querySelector('.fcom_paywall_cards');
+    const groups = native ? planGroups(readPaywallPlans(native)) : [];
+    if (!groups.length) return;
+
+    const loginEl = lock.querySelector('.space_lock_box a.fcom_btn');
+    const loginHref = loginEl ? loginEl.getAttribute('href') : '';
+
+    // native lock box + cards: hidden, not removed (Vue keeps managing them)
+    Array.from(lock.children).forEach((child) => { if (child.id !== 'sv-plans') child.style.display = 'none'; });
+
+    let box = document.getElementById('sv-plans');
+    if (!box) {
+      const save = Math.max.apply(null, groups.map(planSavePct));
+      box = document.createElement('div');
+      box.id = 'sv-plans';
+      box.setAttribute('data-period', 'year');
+      box.innerHTML = '<div class="sv-plans-head"><div class="sv-plans-title">Join Daily Lessons</div>'
+        + '<div class="sv-plans-sub">A short Shona lesson every day. Pick a plan.</div></div>'
+        + '<div class="sv-plans-switch" role="group" aria-label="Billing period">'
+        + '<button type="button" data-period="month">Monthly</button>'
+        + '<button type="button" data-period="year">Yearly' + (save > 0 ? ' <span class="sv-plans-save">Save ' + save + '%</span>' : '') + '</button></div>'
+        + '<div class="sv-plans-grid"></div>'
+        + (safeUrl(loginHref) ? '<div class="sv-plans-login">Already a member? <a href="' + safeUrl(loginHref) + '">Log in</a></div>' : '');
+      const setPeriod = (period) => {
+        box.setAttribute('data-period', period);
+        box.querySelector('.sv-plans-grid').innerHTML = renderPlanCards(groups, period);
+        Array.from(box.querySelectorAll('.sv-plans-switch button')).forEach((b) => {
+          const on = b.getAttribute('data-period') === period;
+          b.classList.toggle('sv-plans-on', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+      };
+      box.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('.sv-plans-switch button');
+        if (b) setPeriod(b.getAttribute('data-period'));
+      });
+      lock.insertBefore(box, lock.firstChild);
+      setPeriod('year');
+    } else if (box.parentNode !== lock || lock.firstChild !== box) {
+      lock.insertBefore(box, lock.firstChild);
     }
   }
 
@@ -1915,6 +2014,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_COURSES, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_COURSES, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();
