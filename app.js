@@ -925,6 +925,7 @@
   }
 
   function mountUI() {
+    mountSidebar();
     const route = document.body.getAttribute('data-route');
     if (route === 'view_lesson') {
       mountLessonUI();
@@ -973,6 +974,85 @@
       ).join('');
     }
     if (bar.nextElementSibling !== header || bar.parentNode !== layout) layout.insertBefore(bar, header);
+  }
+
+  // ── Left sidebar: Home · Community · Live Classes · courses, no group headers; Shop + the website
+  // become small icons at the bottom. FluentCommunity can't hide individual spaces, so this hides
+  // the community spaces (Intros, Lounge, Rules — they live behind one "Community" link, and the
+  // tabs on those pages switch between them). Native nodes are only hidden, never removed, and
+  // our own items are re-added on every mount in case Vue re-rendered the list.
+  function portalBase() {
+    const a = window.fluentComAdmin;
+    return String((a && a.portal_url) || 'https://speakshona.com/shonaverse').replace(/\/+$/, '');
+  }
+
+  const SIDE_ICON_HOME = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"></path><path d="M5.5 10v9.5h13V10"></path></svg>';
+  const SIDE_ICON_COMMUNITY = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"></path></svg>';
+
+  function sideItem(id, label, href, icon, active, before) {
+    let li = document.getElementById(id);
+    if (!li) {
+      li = document.createElement('li');
+      li.id = id;
+      li.className = 'space_menu_item';
+    }
+    const state = (active ? '1' : '0') + '|' + href;
+    if (li.getAttribute('data-state') !== state) {
+      li.setAttribute('data-state', state);
+      li.innerHTML = '<a class="fcom_menu_link space_menu_item route_url fcom_compt_link' + (active ? ' router-link-active router-link-exact-active' : '') + '" href="' + safeUrl(href) + '"'
+        + (active ? ' aria-current="page"' : '') + '><div class="community_avatar"><span class="fcom_shape"><i class="el-icon">' + icon + '</i></span></div>'
+        + '<span class="community_name" title="' + escHtml(label) + '">' + escHtml(label) + '</span></a>';
+    }
+    return li;
+  }
+
+  function mountSidebar() {
+    const wrap = document.getElementById('fcom_sidebar_wrap');
+    if (!wrap) return;
+
+    // the community spaces are replaced by one Community link
+    SPACE_TABS.forEach((t) => {
+      const a = wrap.querySelector('a.fcom_space_' + t.slug);
+      const li = a && a.closest('li');
+      if (li) li.classList.add('sv-side-hidden');
+    });
+
+    // Home + Community on top of the first group
+    const firstList = wrap.querySelector('.fcom_communities_menu nav ul');
+    if (firstList) {
+      const base = portalBase();
+      const onCommunity = SPACE_TABS.some((t) => t.slug === getSpaceSlug());
+      const onHome = document.body.getAttribute('data-route') === 'all_feeds';
+      const home = sideItem('sv-side-home', 'Home', base + '/', SIDE_ICON_HOME, onHome);
+      const community = sideItem('sv-side-community', 'Community', base + '/space/' + SPACE_TABS[0].slug + '/home', SIDE_ICON_COMMUNITY, onCommunity);
+      if (firstList.firstElementChild !== home) firstList.insertBefore(home, firstList.firstChild);
+      if (home.nextElementSibling !== community) firstList.insertBefore(community, home.nextSibling);
+    }
+
+    // Shop + the website: small icons at the bottom instead of a menu block at the top
+    const site = document.querySelector('.fcom_menu_item_fcom_custom_speak_shona_website a');
+    const shop = document.querySelector('.fcom_menu_item_fcom_custom_shop a');
+    const nativeNav = (shop || site) && (shop || site).closest('nav');
+    if (nativeNav) nativeNav.classList.add('sv-side-hidden');
+    let links = document.getElementById('sv-side-links');
+    if (!links && (site || shop)) {
+      links = document.createElement('div');
+      links.id = 'sv-side-links';
+      [site, shop].filter(Boolean).forEach((src) => {
+        const a = document.createElement('a');
+        const label = src.getAttribute('data-fcom-hint') || '';
+        a.href = src.href;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.title = label;
+        a.setAttribute('aria-label', label);
+        const img = src.querySelector('img');
+        if (img) { const i = document.createElement('img'); i.src = img.src; i.alt = ''; a.appendChild(i); }
+        links.appendChild(a);
+      });
+      const footer = document.querySelector('.fcom_side_footer');
+      if (footer) footer.insertBefore(links, footer.firstChild); else wrap.appendChild(links);
+    }
   }
 
   function mountLessonUI() {
@@ -1559,6 +1639,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();

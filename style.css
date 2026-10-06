@@ -447,6 +447,14 @@ body.sv-toc-open .sv-toc-backdrop {
 .sv-space-tab-active { background: var(--sv-orange); color: #ffffff; }
 @media (hover: hover) { .sv-space-tab:not(.sv-space-tab-active):hover { color: var(--sv-text-main); } }
 
+/* ── Left sidebar: no group headers, hidden community spaces, Shop + website as footer icons ── */
+#fcom_sidebar_wrap .fcom_group_title { display: none !important; }
+.sv-side-hidden { display: none !important; }
+#fcom_sidebar_wrap .fcom_communities_menu + .fcom_communities_menu { margin-top: 10px; }
+#sv-side-links { display: flex; gap: 10px; padding: 10px 16px; }
+#sv-side-links a { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: var(--sv-cream); }
+#sv-side-links img { width: 20px; height: 20px; object-fit: contain; }
+
 /* ── Phrase bank + mazwi button (lesson page, built from mazwi.app/lessons.json) ── */
 .sv-phrasebank {
   background: #ffffff;
