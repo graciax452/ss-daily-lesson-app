@@ -118,6 +118,16 @@ describe('Feed page dashboard banner (mounts into the real portal shell, not a s
     expect(document.getElementById('sv-feed-dashboard').textContent).not.toContain('Could not load your progress');
   });
 
+  it('free first: signed out, Home offers "Start lesson 1 free" through a free account sign-up', async () => {
+    const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
+    document.body.insertAdjacentHTML('beforeend', '<a class="fcom_login_btn" href="https://speakshona.com/pinda"></a>');
+    mountUI();
+    await waitForMicrotasks();
+
+    const btn = document.querySelector('#sv-feed-dashboard .sv-dash-lesson-btn');
+    expect(btn.getAttribute('href')).toContain('/pinda?redirect_to=');
+  });
+
   it('brand-new learners get no month squares (nothing to show yet)', async () => {
     const { mountUI } = loadApp({ fixture: 'feed-page', bodyAttrs: { 'data-route': 'all_feeds' } });
     mountUI();

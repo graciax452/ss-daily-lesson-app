@@ -68,6 +68,14 @@ describe('Daily Lessons sales page', () => {
     expect(a.getAttribute('href')).toContain('/pinda');
   });
 
+  it('free first: a signed-out visitor sees "Start lesson 1 free" (a free account) above the plans, not a paywall', () => {
+    mount();
+    const free = document.querySelector('#sv-plans .sv-free .sv-free-btn');
+    expect(free.getAttribute('href')).toContain('/pinda');
+    expect(document.getElementById('sv-plans').firstElementChild.className).toBe('sv-free');
+    expect(document.querySelector('#sv-plans .sv-plans-title').textContent).toBe('Want every lesson?');
+  });
+
   it('is idempotent and puts the plans back on top if Vue re-rendered the lock screen', () => {
     const { mountUI } = mount();
     mountUI();

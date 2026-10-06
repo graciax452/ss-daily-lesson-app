@@ -793,3 +793,9 @@ body.sv-toc-open .sv-toc-backdrop {
   margin: 2px 0 4px !important;
 }
 .sv-lh-theme { font-size: 0.95rem; color: var(--sv-text-muted); }
+
+/* Start-free block above the plans (signed-out Daily Lessons page) */
+.sv-free { margin: 0 auto 28px; padding: 24px 20px; border-radius: 18px; background: #ffffff; border: 2px solid var(--sv-orange); }
+.sv-free-title { font-size: 1.7rem; font-weight: 800; color: var(--sv-text-main); }
+.sv-free-sub { color: var(--sv-text-muted); margin: 6px 0 16px; }
+.sv-free-btn { display: inline-block; padding: 14px 32px; border-radius: 999px; background: var(--sv-orange); color: #ffffff; font-weight: 800; font-size: 1.05rem; text-decoration: none; }
