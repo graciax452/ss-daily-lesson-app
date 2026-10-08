@@ -265,8 +265,13 @@
   // Basa ranhasi card from lessons.json (Table A). '' when the lesson has no mission text.
   function renderMissionHtml(entry) {
     if (!entry || !entry.mission) return '';
-    const bonus = entry.bonus ? `<p class="sv-lm-bonus"><em>Bonus:</em> ${escHtml(entry.bonus)}</p>` : '';
-    return `${eyebrow(entry, "today's mission")}<div class="sv-mission-title">🎯 Basa ranhasi</div><p>${escHtml(entry.mission)}</p>${bonus}`;
+    // Only **bold** is allowed as markup (escaped first). The mission is split into one numbered
+    // step per sentence, like the Zuva 0 first mission.
+    const rich = (t) => escHtml(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    const steps = String(entry.mission).split(/(?<=[.!])\s+(?=[A-Z*])/).map((x) => x.trim()).filter(Boolean);
+    const list = `<ol class="sv-ob-steps sv-ob-steps-mission">${steps.map((x) => `<li>${rich(x)}</li>`).join('')}</ol>`;
+    const bonus = entry.bonus ? `<p class="sv-lm-bonus"><em>Bonus:</em> ${rich(entry.bonus)}</p>` : '';
+    return `${eyebrow(entry, "today's mission")}<div class="sv-mission-title">🎯 Basa ranhasi</div>${list}${bonus}`;
   }
 
   // Phrase bank + mazwi button for one lesson, built from mazwi's lessons.json so the page and

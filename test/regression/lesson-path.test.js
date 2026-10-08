@@ -130,6 +130,16 @@ describe('phrase bank', () => {
     expect(cards[0].textContent).toContain('Bonus:');
   });
 
+  it('numbers the mission into one step per sentence and renders **bold** (no raw asterisks)', () => {
+    const { renderMissionHtml } = loadApp();
+    const html = renderMissionHtml({ zuva: 6, week: 1, mission: 'Write it down, then **unonzi ani?**, saying each aloud. Snap a photo. In the comments, ask: **Munonzi ani?**', bonus: 'Say **Ndinonzi** today!' });
+    document.body.innerHTML = html;
+    expect(document.querySelectorAll('ol.sv-ob-steps li').length).toBe(3);
+    expect(document.body.textContent).not.toContain('**');
+    expect(document.querySelectorAll('ol.sv-ob-steps li strong').length).toBe(2);
+    expect(document.querySelector('.sv-lm-bonus strong').textContent).toBe('Ndinonzi');
+  });
+
   it('escapes mission text', () => {
     const { renderMissionHtml } = loadApp();
     expect(renderMissionHtml({ zuva: 1, mission: '<script>x</script>' })).not.toContain('<script>');

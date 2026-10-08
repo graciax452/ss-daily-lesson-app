@@ -690,6 +690,8 @@ body.sv-toc-open .sv-toc-backdrop {
   border-radius: 12px;
   line-height: 1.5;
 }
+.sv-ob-steps li { list-style: none !important; }
+.sv-ob-steps li::marker { content: none; }
 .sv-ob-steps li::before {
   content: counter(sv-step);
   position: absolute;
@@ -707,6 +709,7 @@ body.sv-toc-open .sv-toc-backdrop {
   justify-content: center;
 }
 .sv-ob-steps-mission li { background: rgba(255, 255, 255, 0.6); }
+.sv-lesson-mission .sv-ob-steps { margin: 10px 0 8px; }
 .sv-ob-info {
   display: flex;
   gap: 10px;
