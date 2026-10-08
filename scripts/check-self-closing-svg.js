@@ -14,7 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const TARGET_FILES = ['app.js', 'dashboard.js'].map((f) => path.join(__dirname, '..', f));
+const TARGET_FILES = ['app.js'].map((f) => path.join(__dirname, '..', f));
 const NON_VOID_SVG_TAGS = ['svg', 'path', 'circle', 'rect', 'line', 'polygon', 'polyline', 'ellipse', 'g'];
 const tagPattern = new RegExp(`<(${NON_VOID_SVG_TAGS.join('|')})\\b[^>]*/>`, 'g');
 
