@@ -827,19 +827,47 @@ body.sv-toc-open .sv-toc-backdrop {
 
 /* ── mazwi colours: lesson words as chips, tinted by the learner's mazwi state ──
    Same colours as mazwi's own word grid. No tint = not met yet in mazwi (or not signed in). */
+/* Frosted-glass chips (2026-10-08): light tinted fills, hue kept, dark same-hue text for contrast */
+.sv-phrasebank {
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(244, 162, 97, 0.14), transparent 55%),
+    radial-gradient(100% 70% at 100% 100%, rgba(110, 154, 58, 0.10), transparent 55%);
+  border-radius: 18px;
+}
 .sv-phrasebank .sv-pb-chip {
+  --chip: 138, 123, 108;
+  --chip-ink: var(--sv-text-main);
   display: inline-block;
-  padding: 5px 11px;
-  border-radius: 6px;
-  background: var(--sv-cream-mute);
-  color: var(--sv-text-main);
+  padding: 5px 12px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(var(--chip), 0.20), rgba(var(--chip), 0.10));
+  border: 1px solid rgba(var(--chip), 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 2px 8px -4px rgba(var(--chip), 0.45);
+  -webkit-backdrop-filter: blur(8px) saturate(1.4);
+  backdrop-filter: blur(8px) saturate(1.4);
+  color: var(--chip-ink);
   font-weight: 600;
   line-height: 1.3;
   justify-self: start;
   align-self: center;
 }
-.sv-phrasebank .sv-pb-chip-forgot   { background: #C0294A; color: #fff; }
-.sv-phrasebank .sv-pb-chip-learning { background: #BF7A10; color: #fff; }
-.sv-phrasebank .sv-pb-chip-review   { background: #0E8A4E; color: #fff; }
-.sv-phrasebank .sv-pb-chip-mature   { background: #1C4FBF; color: #fff; }
+.sv-phrasebank .sv-pb-chip-forgot   { --chip: 224, 90, 120; --chip-ink: #8E1B36; }
+.sv-phrasebank .sv-pb-chip-learning { --chip: 244, 168, 50;  --chip-ink: #7A4A06; }
+.sv-phrasebank .sv-pb-chip-review   { --chip: 52, 190, 120;  --chip-ink: #0A6638; }
+.sv-phrasebank .sv-pb-chip-mature   { --chip: 80, 130, 240;  --chip-ink: #153C94; }
+.sv-phrasebank .sv-pb-pattern {
+  background: linear-gradient(135deg, rgba(248, 239, 227, 0.85), rgba(255, 255, 255, 0.6));
+  border: 1px solid rgba(244, 162, 97, 0.30);
+  border-left: 4px solid var(--sv-orange-light);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.sv-phrasebank .sv-mazwi-card {
+  background: rgba(255, 255, 255, 0.65);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-color: rgba(234, 220, 203, 0.9);
+  box-shadow: 0 4px 14px -8px rgba(43, 33, 24, 0.25);
+}
 .sv-phrasebank .sv-pb-recycled { display: flex; flex-wrap: wrap; gap: 6px; }
