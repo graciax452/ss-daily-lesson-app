@@ -2234,7 +2234,8 @@
   }
 
   let lastSeenLessonId = getLessonId();
-  setInterval(() => {
+  const lessonWatch = setInterval(() => {
+    if (typeof window === 'undefined') { clearInterval(lessonWatch); return; } // page/test environment is gone
     const currentLessonId = getLessonId();
     const wrap = document.getElementById('sv-submissions-feed-wrap');
     if (currentLessonId !== lastSeenLessonId || (document.querySelector('.fcom_lesson_comments') && !wrap)) {
