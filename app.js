@@ -281,14 +281,16 @@
     const slug = entry.slug || 'zuva-' + String(entry.zuva).padStart(2, '0');
     // Tip text may use **bold** (escaped first, so only that one bit of markup is allowed).
     const rich = (t) => escHtml(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // data-n = the word's permanent mazwi id, so it can be tinted by the learner's mazwi state
+    const idAttr = (n) => Number.isInteger(n) ? ` data-n="${n}"` : '';
     const items = (entry.new || []).map((w) =>
-      `<li><strong class="sv-pb-shona">${escHtml(w.shona)}</strong> <span class="sv-pb-eng">${escHtml(w.english)}</span></li>`).join('');
+      `<li><strong class="sv-pb-shona sv-pb-chip"${idAttr(w.n)}>${escHtml(w.shona)}</strong> <span class="sv-pb-eng">${escHtml(w.english)}</span></li>`).join('');
     const newList = items ? `${eyebrow(entry, "today's words")}<div class="sv-pb-title">Mazwi anhasi</div><ul class="sv-pb-list">${items}</ul>` : '';
     const tip = entry.tip
       ? `<div class="sv-pb-section sv-pb-pattern"><div class="sv-pb-label">💡 ${entry.type === 'sound' ? 'Sound pattern' : 'Grammar pattern'}</div><div class="sv-pb-tip">${rich(entry.tip)}</div></div>`
       : '';
     const previous = (entry.recycled || []).length
-      ? `<div class="sv-pb-section"><div class="sv-pb-label">Words from previous lessons</div><div class="sv-pb-recycled">${entry.recycled.map(escHtml).join(' · ')}</div></div>`
+      ? `<div class="sv-pb-section"><div class="sv-pb-label">Words from previous lessons</div><div class="sv-pb-recycled">${entry.recycled.map((w, i) => `<span class="sv-pb-chip"${idAttr((entry.recycled_n || [])[i])}>${escHtml(w)}</span>`).join(' ')}</div></div>`
       : '';
     if (!newList && !tip && !previous) return '';
     const btn = items ? mazwiCardHtml(slug) : '';
@@ -398,7 +400,77 @@
     while (anchor && anchor.parentElement !== lessonBody) anchor = anchor.parentElement;
     if (anchor) anchor.after(block);
     else lessonBody.insertBefore(block, lessonBody.firstChild);
+    tintPhraseBank(block);
     mountMissionCard(block, entry);
+  }
+
+  // ── mazwi colours on the lesson words ─────────────────────────────────────────────────────
+  // Each word is a chip tinted by the signed-in member's mazwi state (same colours as mazwi's own
+  // word grid). Read from their saved mazwi deck with their own login; anyone not signed in, or
+  // who has never opened mazwi, simply sees untinted chips. Never blocks or breaks the lesson page.
+  const MAZWI_STATE_URL = 'https://mazwi.app/src/word-state.js'; // defines getCardState (mazwi's own rule)
+  const CHIP_STATES = ['forgot', 'learning', 'review', 'mature'];
+  let _cardStateFn = null;
+  let _cardStateLoading = null;
+  function _setCardStateFn(fn) { _cardStateFn = fn; }
+
+  function loadCardStateFn() {
+    if (_cardStateFn) return Promise.resolve(_cardStateFn);
+    // Node test runs (module defined) never hit the network.
+    if (typeof document === 'undefined' || typeof module !== 'undefined') return Promise.resolve(null);
+    if (!_cardStateLoading) {
+      _cardStateLoading = new Promise((resolve) => {
+        const s = document.createElement('script');
+        s.src = MAZWI_STATE_URL;
+        s.onload = () => { _cardStateFn = typeof window.getCardState === 'function' ? window.getCardState : null; resolve(_cardStateFn); };
+        s.onerror = () => { _cardStateLoading = null; resolve(null); };
+        document.head.appendChild(s);
+      });
+    }
+    return _cardStateLoading;
+  }
+
+  // { word_num: 'forgot' | 'learning' | 'review' | 'mature' } — words not met yet are left out.
+  function mazwiStatesFromDeck(deckCards, stateOf) {
+    const out = {};
+    (Array.isArray(deckCards) ? deckCards : []).forEach((c) => {
+      if (!c || !Number.isInteger(c.n)) return;
+      let st; try { st = stateOf(c); } catch (e) { return; }
+      if (CHIP_STATES.includes(st)) out[c.n] = st;
+    });
+    return out;
+  }
+
+  function applyMazwiStates(block, states) {
+    block.querySelectorAll('[data-n]').forEach((el) => {
+      CHIP_STATES.forEach((s) => el.classList.remove('sv-pb-chip-' + s));
+      const st = states && states[el.getAttribute('data-n')];
+      if (CHIP_STATES.includes(st)) el.classList.add('sv-pb-chip-' + st);
+    });
+  }
+
+  async function loadMazwiStates() {
+    try {
+      const uid = await ensureAuth();
+      if (!uid) return {};
+      const stateOf = await loadCardStateFn();
+      if (!stateOf) return {};
+      const { data, error } = await supabase.from('user_decks').select('deck').eq('user_id', uid);
+      if (error || !data || !data[0]) return {};
+      return mazwiStatesFromDeck(data[0].deck, stateOf);
+    } catch (e) { return {}; }
+  }
+
+  // One read per minute is plenty: lesson pages swap without a reload, and a learner who just
+  // studied in mazwi sees the new colours on their next lesson page after a minute.
+  let _statesCache = null;
+  function getMazwiStates() {
+    if (!_statesCache || Date.now() - _statesCache.at > 60000) _statesCache = { at: Date.now(), p: loadMazwiStates() };
+    return _statesCache.p;
+  }
+
+  function tintPhraseBank(block) {
+    getMazwiStates().then((states) => applyMazwiStates(block, states)).catch(() => {});
   }
 
   function mountMissionCard(afterEl, entry) {
@@ -2255,6 +2327,6 @@
   // Test-only hook: never runs in a browser (typeof module is undefined there).
   // Lets the test suite require() the real functions instead of duplicating them.
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { _setNavigate, celebrationNextStep, zuvaNumberForPage, lessonProgress, celebrateLessonCompletion, syncOwnCompletions, resolveLessonIdBySlug, ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_NAME, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
+    module.exports = { mazwiStatesFromDeck, applyMazwiStates, loadMazwiStates, _setCardStateFn, _setNavigate, celebrationNextStep, zuvaNumberForPage, lessonProgress, celebrateLessonCompletion, syncOwnCompletions, resolveLessonIdBySlug, ensureAuth, emailFromToken, completedZuvas, withDoneZuvas, withMemberToken, cleanLessonTitle, lessonEyebrow, mountLessonHeader, renderOnboardingHtml, renderMissionHtml, isOnboardingLesson, isLessonPublished, nextArrivalText, lessonProgress, pickAffirmation, AFFIRMATIONS, styleLessonContent, showCelebrationModal, escHtml, safeUrl, findZuvaForUrl, zuvaFromTitle, findLessonEntry, renderPhraseBankHtml, mountPhraseBank, _setLessonsManifest, flattenCourseLessons, getCourse, renderLatestMissionsHtml, getLessonId, getUserInfo, mountUI, mountPaywall, readPaywallPlans, planGroups, mountLiveClasses, zonedInstant, nextLiveSession, renderLiveCard, renderLiveRecordings, formatCountdown, LIVE_CLASSES_DEFAULT, isEnrolledIn, ENROLLED_ONLY_NAME, liveLocalLabel, liveZone, detectedZone, LIVE_ZONES, mountSidebar, mountSpaceTabs, getSpaceSlug, SPACE_TABS, scheduleMountUI, getLessonNumber, getCourseProgress, calculateStreak, getTotalLessonCount, getWeekCompletionMap, getMonthCompletionMap, getTotalCompletedCount, getCurrentLesson, filterCompletionsForCourse, FEED_DASHBOARD_LESSONS };
   }
 })();
