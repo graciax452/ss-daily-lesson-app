@@ -2301,6 +2301,7 @@
     mountUIScheduled = true;
     setTimeout(() => {
       mountUIScheduled = false;
+      if (typeof document === 'undefined') return; // page/test environment is gone
       mountUI();
     }, 150);
   }

@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { loadApp } from '../setup.js';
 
 // Lesson words are tinted by the learner's mazwi state, like the word chips on mazwi's own page:
@@ -115,9 +115,14 @@ describe('loading the member\'s states', () => {
     _setLessonsManifest([ENTRY]);
     document.querySelector('.fcom_lesson_title h1').textContent = 'Zuva 2 — Hesi, Mhoro, Mhoroi';
     mountPhraseBank(document.querySelector('.fcom_lesson_content'));
-    for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+    // wait for the page to render and the states to land, instead of guessing a number of timer
+    // ticks (that guess failed about 1 run in 8 when the machine was busy)
+    await vi.waitFor(() => {
+      const b = document.getElementById('sv-phrasebank');
+      expect(b).not.toBeNull();
+      expect(b.querySelector('[data-n="20"]').className).toContain('sv-pb-chip-forgot');
+    }, { timeout: 3000, interval: 10 });
     const block = document.getElementById('sv-phrasebank');
-    expect(block.querySelector('[data-n="20"]').className).toContain('sv-pb-chip-forgot');
     expect(block.querySelector('[data-n="5"]').className).toContain('sv-pb-chip-mature');
     expect(block.querySelector('[data-n="21"]').className).not.toContain('sv-pb-chip-');
   });
